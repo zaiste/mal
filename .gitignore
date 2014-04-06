@@ -1,7 +1,6 @@
 make/mal.mk
 js/node_modules
 js/mal.js
-js/mal_web.js
 bash/mal.sh
 c/*.o
 *.pyc
