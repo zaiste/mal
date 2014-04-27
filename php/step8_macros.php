@@ -94,11 +94,14 @@ function MAL_EVAL($ast, $env) {
         for ($i=0; $i < count($a1); $i+=2) {
             $let_env->set($a1[$i]->value, MAL_EVAL($a1[$i+1], $let_env));
         }
-        return MAL_EVAL($ast[2], $let_env);
+        $ast = $ast[2];
+        $env = $let_env;
+        break; // Continue loop (TCO)
     case "quote":
         return $ast[1];
     case "quasiquote":
-        return MAL_EVAL(quasiquote($ast[1]), $env);
+        $ast = quasiquote($ast[1]);
+        break; // Continue loop (TCO)
     case "defmacro!":
         $func = MAL_EVAL($ast[2], $env);
         $func->ismacro = true;
@@ -108,7 +111,7 @@ function MAL_EVAL($ast, $env) {
     case "do":
         eval_ast($ast->slice(1, -1), $env);
         $ast = $ast[count($ast)-1];
-        break;
+        break; // Continue loop (TCO)
     case "if":
         $cond = MAL_EVAL($ast[1], $env);
         if ($cond === NULL || $cond === false) {
@@ -117,19 +120,18 @@ function MAL_EVAL($ast, $env) {
         } else {
             $ast = $ast[2];
         }
-        break;
+        break; // Continue loop (TCO)
     case "fn*":
         return _function('MAL_EVAL', 'native',
-                         _hash_map('exp', $ast[2],
-                                   'env', $env,
-                                   'params', $ast[1]));
+                         $ast[2], $env, $ast[1]);
     default:
         $el = eval_ast($ast, $env);
         $f = $el[0];
         $args = array_slice($el->getArrayCopy(), 1);
         if ($f->type === 'native') {
-            $ast = $f->meta['exp'];
-            $env = new Env($f->meta['env'], $f->meta['params'], $args);
+            $ast = $f->ast;
+            $env = $f->gen_env($args);
+            // Continue loop (TCO)
         } else {
             return $f->apply($args);
         }
@@ -149,44 +151,45 @@ function rep($str) {
     global $repl_env;
     return MAL_PRINT(MAL_EVAL(READ($str), $repl_env));
 }
-function _ref($k, $v) {
-    global $repl_env;
+
+// core.php: defined using PHP
+foreach ($core_ns as $k=>$v) {
     $repl_env->set($k, _function($v));
 }
-// Import core functions
-foreach ($core_ns as $k=>$v) { _ref($k, $v); }
-
-_ref('read-string', 'read_str');
-_ref('eval', function($ast) {
+$repl_env->set('eval', _function(function($ast) {
     global $repl_env; return MAL_EVAL($ast, $repl_env);
-});
-_ref('slurp', function($f) {
-    return file_get_contents($f);
-});
+}));
+$_argv = _list();
+for ($i=2; $i < count($argv); $i++) {
+    $_argv->append($argv[$i]);
+}
+$repl_env->set('*ARGV*', $_argv);
 
-// Defined using the language itself
+// core.mal: defined using the language itself
 rep("(def! not (fn* (a) (if a false true)))");
 rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))");
+rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))");
+rep("(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))");
 
 if (count($argv) > 1) {
-    for ($i=1; $i < count($argv); $i++) {
-        rep('(load-file "' . $argv[$i] . '")');
-    }
-} else {
-    do {
-        try {
-            $line = mal_readline("user> ");
-            if ($line === NULL) { break; }
-            if ($line !== "") {
-                print(rep($line));
-            }
-        } catch (BlankException $e) {
-            continue;
-        } catch (Exception $e) {
-            echo "Error: " . $e->getMessage() . "\n";
-            echo $e->getTraceAsString() . "\n";
-        }
-    } while (true);
+    rep('(load-file "' . $argv[1] . '")');
+    exit(0);
 }
 
-?> 
+// repl loop
+do {
+    try {
+        $line = mal_readline("user> ");
+        if ($line === NULL) { break; }
+        if ($line !== "") {
+            print(rep($line));
+        }
+    } catch (BlankException $e) {
+        continue;
+    } catch (Exception $e) {
+        echo "Error: " . $e->getMessage() . "\n";
+        echo $e->getTraceAsString() . "\n";
+    }
+} while (true);
+
+?>

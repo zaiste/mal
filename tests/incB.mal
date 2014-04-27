@@ -7,8 +7,8 @@
 (def! mymap {"a"
              1})
 
-;; Test commas as whitespace
-(def! myvec [1 2, 3])
-
 (prn "incB.mal finished")
 "incB.mal return string"
+
+;; ending comment
+

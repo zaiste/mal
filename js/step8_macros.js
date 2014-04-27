@@ -23,9 +23,13 @@ function quasiquote(ast) {
     } else if (ast[0].value === 'unquote') {
         return ast[1];
     } else if (is_pair(ast[0]) && ast[0][0].value === 'splice-unquote') {
-        return [types._symbol("concat"), ast[0][1], quasiquote(ast.slice(1))];
+        return [types._symbol("concat"),
+                ast[0][1],
+                quasiquote(ast.slice(1))];
     } else {
-        return [types._symbol("cons"), quasiquote(ast[0]), quasiquote(ast.slice(1))];
+        return [types._symbol("cons"),
+                quasiquote(ast[0]),
+                quasiquote(ast.slice(1))];
     }
 }
 
@@ -67,7 +71,7 @@ function eval_ast(ast, env) {
 function _EVAL(ast, env) {
     while (true) {
 
-    //printer.println("EVAL:", types._pr_str(ast, true));
+    //printer.println("EVAL:", printer._pr_str(ast, true));
     if (!types._list_Q(ast)) {
         return eval_ast(ast, env);
     }
@@ -86,11 +90,14 @@ function _EVAL(ast, env) {
         for (var i=0; i < a1.length; i+=2) {
             let_env.set(a1[i].value, EVAL(a1[i+1], let_env));
         }
-        return EVAL(a2, let_env);
+        ast = a2;
+        env = let_env;
+        break;
     case "quote":
         return a1;
     case "quasiquote":
-        return EVAL(quasiquote(a1), env);
+        ast = quasiquote(a1);
+        break;
     case 'defmacro!':
         var func = EVAL(a2, env);
         func._ismacro_ = true;
@@ -112,10 +119,10 @@ function _EVAL(ast, env) {
     case "fn*":
         return types._function(EVAL, Env, a2, env, a1);
     default:
-        var el = eval_ast(ast, env), f = el[0], meta = f.__meta__;
-        if (meta && meta.exp) {
-            ast = meta.exp;
-            env = new Env(meta.env, meta.params, el.slice(1));
+        var el = eval_ast(ast, env), f = el[0];
+        if (f.__ast__) {
+            ast = f.__ast__;
+            env = f.__gen_env__(el.slice(1));
         } else {
             return f.apply(f, el.slice(1));
         }
@@ -137,34 +144,26 @@ function PRINT(exp) {
 // repl
 var repl_env = new Env();
 var rep = function(str) { return PRINT(EVAL(READ(str), repl_env)); };
-_ref = function (k,v) { repl_env.set(k, v); }
 
-// Import core functions
+// core.js: defined using javascript
 for (var n in core.ns) { repl_env.set(n, core.ns[n]); }
+repl_env.set('eval', function(ast) { return EVAL(ast, repl_env); });
+repl_env.set('*ARGV*', []);
 
-_ref('read-string', reader.read_str);
-_ref('eval', function(ast) { return EVAL(ast, repl_env); });
-_ref('slurp', function(f) {
-    return require('fs').readFileSync(f, 'utf-8');
-});
-
-// Defined using the language itself
+// core.mal: defined using the language itself
 rep("(def! not (fn* (a) (if a false true)))");
 rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))");
+rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))");
+rep("(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))");
 
 if (typeof process !== 'undefined' && process.argv.length > 2) {
-    for (var i=2; i < process.argv.length; i++) {
-        rep('(load-file "' + process.argv[i] + '")');
-    }
-} else if (typeof require === 'undefined') {
-    // Asynchronous browser mode
-    readline.rlwrap(function(line) { return rep(line); },
-                    function(exc) {
-                        if (exc instanceof reader.BlankException) { return; }
-                        if (exc.stack) { printer.println(exc.stack); }
-                        else           { printer.println(exc); }
-                    });
-} else if (require.main === module) {
+    repl_env.set('*ARGV*', process.argv.slice(3));
+    rep('(load-file "' + process.argv[2] + '")');
+    process.exit(0);
+}
+
+// repl loop
+if (typeof require !== 'undefined' && require.main === module) {
     // Synchronous node.js commandline mode
     while (true) {
         var line = readline.readline("user> ");
@@ -177,6 +176,4 @@ if (typeof process !== 'undefined' && process.argv.length > 2) {
             else           { printer.println(exc); }
         }
     }
-} else {
-    exports.rep = rep;
 }

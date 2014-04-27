@@ -1,20 +1,19 @@
 #!/bin/bash
 
-INTERACTIVE=${INTERACTIVE-yes}
-
 source $(dirname $0)/reader.sh
 source $(dirname $0)/printer.sh
-source $(dirname $0)/core.sh
 source $(dirname $0)/env.sh
+source $(dirname $0)/core.sh
 
-# READ: read and parse input
+# read
 READ () {
-    READLINE
+    [ "${1}" ] && r="${1}" || READLINE
     READ_STR "${r}"
 }
 
+# eval
 IS_PAIR () {
-    if _list? "${1}"; then
+    if _sequential? "${1}"; then
         _count "${1}"
         [[ "${r}" > 0 ]] && return 0
     fi
@@ -36,7 +35,7 @@ QUASIQUOTE () {
             if [[ "${ANON["${a00}"]}" == "splice-unquote" ]]; then
                 _symbol concat; local a="${r}"
                 _nth "${a0}" 1; local b="${r}"
-                rest "${1}"
+                _rest "${1}"
                 QUASIQUOTE "${r}"; local c="${r}"
                 _list "${a}" "${b}" "${c}"
                 return
@@ -45,7 +44,7 @@ QUASIQUOTE () {
     fi
     _symbol cons; local a="${r}"
     QUASIQUOTE "${a0}"; local b="${r}"
-    rest "${1}"
+    _rest "${1}"
     QUASIQUOTE "${r}"; local c="${r}"
     _list "${a}" "${b}" "${c}"
     return
@@ -68,7 +67,7 @@ MACROEXPAND () {
     while IS_MACRO_CALL "${ast}" "${env}"; do
         _nth "${ast}" 0; local a0="${r}"
         ENV_GET "${env}" "${ANON["${a0}"]}"; local mac="${ANON["${r}"]}"
-        rest "${ast}"
+        _rest "${ast}"
         ${mac%%@*} ${ANON["${r}"]}
         ast="${r}"
     done
@@ -104,7 +103,6 @@ EVAL_AST () {
     esac
 }
 
-# EVAL: evaluate the parameter
 EVAL () {
     local ast="${1}" env="${2}"
     while true; do
@@ -138,15 +136,18 @@ EVAL () {
                   ENV_SET "${let_env}" "${ANON["${let_pairs[${idx}]}"]}" "${r}"
                   idx=$(( idx + 2))
               done
-              EVAL "${a2}" "${let_env}"
-              return ;;
+              ast="${a2}"
+              env="${let_env}"
+              # Continue loop
+              ;;
         quote)
               r="${a1}"
               return ;;
         quasiquote)
               QUASIQUOTE "${a1}"
-              EVAL "${r}" "${env}"
-              return ;;
+              ast="${r}"
+              # Continue loop
+              ;;
         defmacro!)
               local k="${ANON["${a1}"]}"
               EVAL "${a2}" "${env}"
@@ -163,13 +164,13 @@ EVAL () {
               while read line; do
                   output="${output}${line}\n"
               done < <(eval ${ANON["${r}"]})
-              _string "${output}"
+              _string "${output%\\n}"
               return ;;
         do)   _count "${ast}"
               _slice "${ast}" 1 $(( ${r} - 2 ))
               EVAL_AST "${r}" "${env}"
               [[ "${__ERROR}" ]] && r= && return 1
-              last "${ast}"
+              _last "${ast}"
               ast="${r}"
               # Continue loop
               ;;
@@ -196,8 +197,8 @@ EVAL () {
         *)    EVAL_AST "${ast}" "${env}"
               [[ "${__ERROR}" ]] && r= && return 1
               local el="${r}"
-              first "${el}"; local f="${ANON["${r}"]}"
-              rest "${el}"; local args="${ANON["${r}"]}"
+              _first "${el}"; local f="${ANON["${r}"]}"
+              _rest "${el}"; local args="${ANON["${r}"]}"
               #echo "invoke: [${f}] ${args}"
               if [[ "${f//@/ }" != "${f}" ]]; then
                   set -- ${f//@/ }
@@ -214,7 +215,7 @@ EVAL () {
     done
 }
 
-# PRINT:
+# print
 PRINT () {
     if [[ "${__ERROR}" ]]; then
         _pr_str "${__ERROR}" yes
@@ -225,42 +226,38 @@ PRINT () {
     fi
 }
 
-# REPL: read, eval, print, loop
+# repl
 ENV; REPL_ENV="${r}"
 REP () {
     r=
-    READ_STR "${1}"
+    READ "${1}" || return 1
     EVAL "${r}" "${REPL_ENV}"
     PRINT "${r}"
 }
 
+# core.sh: defined using bash
 _fref () { _function "${2} \"\${@}\""; ENV_SET "${REPL_ENV}" "${1}" "${r}"; }
-
-# Import types functions
 for n in "${!core_ns[@]}"; do _fref "${n}" "${core_ns["${n}"]}"; done
-
-read_string () { READ_STR "${ANON["${1}"]}"; }
-_fref "read-string" read_string
 _eval () { EVAL "${1}" "${REPL_ENV}"; }
 _fref "eval" _eval
-slurp () {
-    local lines
-    mapfile lines < "${ANON["${1}"]}"
-    local text="${lines[*]}"; text=${text//$'\n' /$'\n'}
-    _string "${text}"
-}
-_fref "slurp" slurp
+_list; argv="${r}"
+for _arg in "${@:2}"; do _string "${_arg}"; _conj! "${argv}" "${r}"; done
+ENV_SET "${REPL_ENV}" "__STAR__ARGV__STAR__" "${argv}";
 
-# Defined using the language itself
+# core.mal: defined using the language itself
 REP "(def! not (fn* (a) (if a false true)))"
 REP "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))"
+REP "(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))"
+REP "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) \`(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))"
 
+# load/run file from command line (then exit)
 if [[ "${1}" ]]; then
-    echo "${@}"
-    REP "(load-file \"${1}\")" && echo "${r}"
-elif [[ -n "${INTERACTIVE}" ]]; then
-    while true; do
-        READLINE "user> " || exit "$?"
-        [[ "${r}" ]] && REP "${r}" && echo "${r}"
-    done
-fi
+    REP "(load-file \"${1}\")"
+    exit 0
+fi 
+
+# repl loop
+while true; do
+    READLINE "user> " || exit "$?"
+    [[ "${r}" ]] && REP "${r}" && echo "${r}"
+done

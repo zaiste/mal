@@ -55,22 +55,23 @@
 (def repl-env (env/env))
 (defn rep
   [strng]
-  (PRINT (EVAL (READ strng), repl-env)))
+  (PRINT (EVAL (READ strng) repl-env)))
 
-(defn _ref [k,v] (env/env-set repl-env k v))
-(_ref '+ +)
-(_ref '- -)
-(_ref '* *)
-(_ref '/ /)
+(env/env-set repl-env '+ +)
+(env/env-set repl-env '- -)
+(env/env-set repl-env '* *)
+(env/env-set repl-env '/ /)
 
+;; repl loop
+(defn repl-loop []
+  (let [line (readline/readline "user> ")]
+    (when line
+      (when-not (re-seq #"^\s*$|^\s*;.*$" line) ; blank/comment
+        (try
+          (println (rep line))
+          (catch Throwable e
+            (clojure.repl/pst e))))
+      (recur))))
 
 (defn -main [& args]
-  (loop []
-    (let [line (readline/readline "user> ")]
-      (when line
-        (when-not (re-seq #"^\s*$|^\s*;.*$" line) ; blank/comment
-          (try
-            (println (rep line))
-            (catch Throwable e
-              (clojure.repl/pst e))))
-        (recur)))))
+  (repl-loop))

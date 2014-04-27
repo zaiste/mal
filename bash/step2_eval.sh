@@ -1,17 +1,15 @@
 #!/bin/bash
 
-INTERACTIVE=${INTERACTIVE-yes}
-
 source $(dirname $0)/reader.sh
 source $(dirname $0)/printer.sh
-source $(dirname $0)/core.sh
 
-# READ: read and parse input
+# read
 READ () {
-    READLINE
+    [ "${1}" ] && r="${1}" || READLINE
     READ_STR "${r}"
 }
 
+# eval
 EVAL_AST () {
     local ast="${1}" env="${2}"
     #_pr_str "${ast}"; echo "EVAL_AST '${ast}:${r} / ${env}'"
@@ -40,7 +38,6 @@ EVAL_AST () {
     esac
 }
 
-# EVAL: evaluate the parameter
 EVAL () {
     local ast="${1}" env="${2}"
     r=
@@ -56,13 +53,13 @@ EVAL () {
     EVAL_AST "${ast}" "${env}"
     [[ "${__ERROR}" ]] && return 1
     local el="${r}"
-    first "${el}"; local f="${r}"
-    rest "${el}"; local args="${ANON["${r}"]}"
+    _first "${el}"; local f="${r}"
+    _rest "${el}"; local args="${ANON["${r}"]}"
     #echo "invoke: ${f} ${args}"
     eval ${f} ${args}
 }
 
-# PRINT:
+# print
 PRINT () {
     if [[ "${__ERROR}" ]]; then
         _pr_str "${__ERROR}" yes
@@ -73,22 +70,27 @@ PRINT () {
     fi
 }
 
-# REPL: read, eval, print, loop
+# repl
 declare -A REPL_ENV
 REP () {
-    READ_STR "${1}"
+    r=
+    READ "${1}" || return 1
     EVAL "${r}" REPL_ENV
     PRINT "${r}"
 }
 
-REPL_ENV["+"]=num_plus
-REPL_ENV["-"]=num_minus
-REPL_ENV["__STAR__"]=num_multiply
-REPL_ENV["/"]=num_divide
+plus     () { r=$(( ${ANON["${1}"]} + ${ANON["${2}"]} )); _number "${r}"; }
+minus    () { r=$(( ${ANON["${1}"]} - ${ANON["${2}"]} )); _number "${r}"; }
+multiply () { r=$(( ${ANON["${1}"]} * ${ANON["${2}"]} )); _number "${r}"; }
+divide   () { r=$(( ${ANON["${1}"]} / ${ANON["${2}"]} )); _number "${r}"; }
 
-if [[ -n "${INTERACTIVE}" ]]; then
-    while true; do
-        READLINE "user> " || exit "$?"
-        [[ "${r}" ]] && REP "${r}" && echo "${r}"
-    done
-fi
+REPL_ENV["+"]=plus
+REPL_ENV["-"]=minus
+REPL_ENV["__STAR__"]=multiply
+REPL_ENV["/"]=divide
+
+# repl loop
+while true; do
+    READLINE "user> " || exit "$?"
+    [[ "${r}" ]] && REP "${r}" && echo "${r}"
+done

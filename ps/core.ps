@@ -1,5 +1,3 @@
-(in core.ps\n) print
-
 % requires types.ps
 
 % Errors/Exceptions
@@ -40,12 +38,17 @@ end } def
 
 % [hashmap key] -> hash_map_get -> value
 /hash_map_get {
-    dup 0 _nth /data get % stack: args dict
-    exch 1 _nth % stack: dict key
-    2 copy known { %if has key
-        get
-    }{
+    dup 0 _nth % stack: args hash_map
+    dup null eq { %if hash_map is a nil
         pop pop null
+    }{ %else hash_map is not a nil
+        /data get % stack: args dict
+        exch 1 _nth % stack: dict key
+        2 copy known { %if has key
+            get
+        }{
+            pop pop null
+        } ifelse
     } ifelse
 } def
 
@@ -87,7 +90,7 @@ end } def
 % [listA listB] -> concat -> [listA... listB...]
 /concat { % replaces matric concat
     dup _count 0 eq { %if just concat
-        0 _list
+        pop 0 _list
     }{ dup _count 1 eq { %elseif concat of single item
         0 _nth % noop
     }{ % else
@@ -124,7 +127,7 @@ end } def
         } for
         new_arr _list_from_array
     }{ %else vector
-        src_arr new_arr copy
+        src_arr new_arr copy pop
         1 1 args _count 1 sub {
             /idx exch def
             new_arr   src_arr length idx add 1 sub   args idx _nth   put
@@ -172,7 +175,12 @@ end } def
 
 % [obj] -> meta -> meta
 /meta {
-    0 _nth /meta get
+    0 _nth % stack: obj
+    dup type /dicttype eq { %if dictionary
+        dup /meta known { /meta get }{ pop null } ifelse
+    }{ %else
+        pop null % no meta on non-collections
+    } ifelse
 } def
 
 
@@ -196,7 +204,7 @@ end } def
     [ atm /data get ] 
     args 2 args _count 2 sub _slice /data get
     concatenate _list_from_array
-    args 1 _nth callable % make sure function is callable
+    args 1 _nth callable % extract proc
     exec
     /new_val exch def
     atm /data new_val put
@@ -213,10 +221,14 @@ end } def
     (true?)   { 0 _nth _true? }
     (false?)  { 0 _nth _false? }
     (symbol?) { 0 _nth _symbol? }
+
     (pr-str)  { /data get ( ) true _pr_str_args }
     (str)     { /data get () false _pr_str_args }
     (prn)     { /data get ( ) true _pr_str_args print (\n) print null }
     (println) { /data get ( ) false _pr_str_args print (\n) print null }
+    (readline) { 0 _nth _readline not { pop null } if }
+    (read-string) { 0 _nth read_str }
+    (slurp)   { 0 _nth (r) file dup bytesavailable string readstring pop }
     (<)       { dup 0 _nth exch 1 _nth lt }
     (<=)      { dup 0 _nth exch 1 _nth le }
     (>)       { dup 0 _nth exch 1 _nth gt }
@@ -225,6 +237,7 @@ end } def
     (-)       { dup 0 _nth exch 1 _nth sub }
     (*)       { dup 0 _nth exch 1 _nth mul }
     (/)       { dup 0 _nth exch 1 _nth idiv }
+    (time-ms) { pop realtime }
 
     (list)    { /data get _list_from_array }
     (list?)   { 0 _nth _list? }

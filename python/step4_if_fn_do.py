@@ -27,7 +27,7 @@ def eval_ast(ast, env):
         return ast  # primitive value, return unchanged
 
 def EVAL(ast, env):
-        #print("EVAL %s" % ast)
+        #print("EVAL %s" % printer._pr_str(ast))
         if not types._list_Q(ast):
             return eval_ast(ast, env)
 
@@ -72,14 +72,14 @@ def PRINT(exp):
 repl_env = Env()
 def REP(str):
     return PRINT(EVAL(READ(str), repl_env))
-def _ref(k,v): repl_env.set(k, v)
 
-# Import types functions
-for name, val in core.ns.items(): _ref(name, val)
+# core.py: defined using python
+for k, v in core.ns.items(): repl_env.set(k, v)
 
-# Defined using the language itself
+# core.mal: defined using the language itself
 REP("(def! not (fn* (a) (if a false true)))")
 
+# repl loop
 while True:
     try:
         line = mal_readline.readline("user> ")
@@ -88,4 +88,4 @@ while True:
         print(REP(line))
     except reader.Blank: continue
     except Exception as e:
-        print "".join(traceback.format_exception(*sys.exc_info()))
+        print("".join(traceback.format_exception(*sys.exc_info())))

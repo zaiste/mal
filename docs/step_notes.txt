@@ -17,9 +17,6 @@ Step Notes:
     - types module:
         - add boxed types if no language equivalent:
             - nil, true, false, symbol, integer, string, list
-        - pr_str:
-            - stringify boxed types to their Mal representations
-            - list/array is recursive
     - reader module:
         - stateful reader object
             - alternative: mutate token list
@@ -33,14 +30,20 @@ Step Notes:
         - read_list
             - read_form until ')'
             - return array (boxed)
-        - read_atom
+        - read_atom (not atom type)
             - return scalar boxed type:
                 - nil, true, false, symbol, integer, string
+    - printer module:
+        - _pr_str:
+            - stringify boxed types to their Mal representations
+            - list/array is recursive
     - repl loop
         - catch errors, print them and continue
         - impls without exception handling will need to have a global
           variable with checks for it at the beginning of critical
           code sections
+
+- comments
 
 - vectors
     - Basically: two array types that retain their boxed types, can be
@@ -70,12 +73,11 @@ Step Notes:
 
 - step2_eval
     - types module:
+        - symbol?, list? (if no simple idiomatic impl type check)
         - first, rest, nth on list
     - eval_ast:
         - if symbol, return value of looking up in env
         - if list, eval each item, return new list
-        - if vector support, eval each item, return new vector
-        - if hash_map support, eval each value, return new hash_map
         - otherwise, just return unchanged ast
     - EVAL/apply:
         - if not a list, call eval_ast
@@ -83,26 +85,39 @@ Step Notes:
     - repl_env as simple one level assoc. array (or hash_map)
         - store function as hash_map value
 
+- vectors
+    - eval each item, return new vector
+
+- hash-maps
+    - eval each value, return new hash_map
+
 - step3_env
     - types module:
-        - Env type:
-            - find, set, get (no binds/exprs in constructor yet)
         - may need function type if HashMap is strongly typed (e.g. Java)
+    - env type:
+        - find, set, get (no binds/exprs in constructor yet)
     - EVAL/apply:
         - def! - mutate current environment
         - let* - create new environment with bindings
-    - _ref sugar
 
 - step4_if_fn_do
     - types module:
-        - function type (closure)
+        - function type if no closures in impl language
+        - _equal_Q function (recursive)
+    - reader module
+        - string unescaping
+    - printer module
+        - print_readably option for pr_str
         - add function printing to pr_str
+        - string escaping in pr_str
+    - core module (export via core_ns):
+        - export equal_Q from types as =
+        - move arith operations here
+        - add arith comparison functions
+        - pr_str, str, prn, println
+        - list, list?, count, empty?
+    - env module:
         - add binds/exprs handling to Env constructor with variable arity
-        - functions (exported via types_ns):
-            - move arith operations here
-            - comparison operations (including =)
-            - prn, pr_str, = (recursive)
-            - list, list?, count, empty?
     - EVAL:
         - do:
         - if:
@@ -112,30 +127,31 @@ Step Notes:
               have associated metadata
     - define "not" using REP/RE
 
-
-- metadata
-    - 
-
 - step5_tco
     - types module:
-        - function type:
+        - mal function type:
             - stores: func, exp, env, params
             - func is EVAL in native mal case, otherwise reference to
               platform function
             - if metadata support, then store exp, env, params as
               metadata
-        - update function printer to show function types
+    - printer
+        - add printing of mal function type
     - EVAL:
         - while loop around whole thing
         - cases where we directly return result of EVAL, instead set
           ast and env to what would be put in the EVAL, then loop.
-            - for apply case, set env to new Env based on properties
+            - do, if, "apply"
+            - for "apply" case, set env to new Env based on properties
               on the function
 
 - step6_file
-    - add read-string, eval, slurp platform wrappers
-    - define load-file function
-    - if files on command line, use load-file to run
+    - core module:
+        - read-string, slurp functions
+    - define eval and load-file functions
+    - set *ARGV*
+    - if files on command line, use load-file to run first argument
+      using rest as arguments
 
 - step7_quote
     - add is_pair and quasiquote functions
@@ -143,40 +159,48 @@ Step Notes:
         - if vectors, use sequential? instead of list? in is_pair
     - EVAL:
         - add 'quote', 'quasiquote' cases
-    - types module:
+    - core module:
         - add cons and concat functions
     - reader module:
         - add reader macros to read_form for quote, unquote,
           splice-unquote and quasiquote
 
 - step8_macros
-    - types module:
-        - add first, rest functions
+    - types
+        - capability to store ismacro property in function
+    - core module:
+        - add first, rest, nth functions
     - add is_macro_call and macroexpand
         - recursively macroexpand lists
         - if applying a macro function, run it on the ast first before
           continuing
-    - call macroexpand apply in EVAL
+    - call macroexpand apply in EVAL before apply
     - EVAL:
         - add 'defmacro!' and 'macroexpand'
-        - store ismacro property on function metadata
+        - set ismacro property on function
 
 - step9_interop
+    - convert returned data to mal data
+        - recursive, similar to pr_str
 
 - stepA_more
-    - types module:
+    - core module:
         - throw function
         - apply, map functions: should not directly call EVAL, which
           requires the function object to be runnable
+        - readline
+        - nil?, true?, false? 
     - EVAL:
         - try*/catch*: for normal exceptions, extracts string
           otherwise extracts full value
+    - set and print *host-language*
+    - define cond and or macros using REP/RE
 
 - Extra defintions needed for self-hosting
-    - types module:
-        - symbol?, nil?, true?, false?, sequential? (if not already)
-        - first, rest
-    - define cond and or macros using REP/RE
+    - core module:
+        - symbol?, sequential? (if not already)
+        - vector, vector?
+
 
 - Other misc:
     - conj function
@@ -184,14 +208,16 @@ Step Notes:
 - atoms
     - reader module:
         - @a reader macro -> (deref a)
-    - types module:
+    - core module:
         - pr_str case
         - atom type, atom, atom?, deref, reset!, swap!
 
 - metadata
-    - types module:
-        - support meta property on symbols, hash-maps, lists, vectors,
-          functions, atoms
-        - add with-meta, meta functions
     - reader module:
         - ^ reader macro reads ^meta obj -> (with-meta obj meta)
+    - types module:
+        - support meta property on collections: lists, vectors,
+          hash-maps, functions, atoms
+            - clone/copy of collections
+    - core module:
+        - add with-meta, meta functions

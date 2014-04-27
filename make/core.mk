@@ -8,6 +8,8 @@ __mal_core_included := true
 _TOP_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 include $(_TOP_DIR)util.mk
 include $(_TOP_DIR)types.mk
+include $(_TOP_DIR)readline.mk
+include $(_TOP_DIR)reader.mk
 include $(_TOP_DIR)printer.mk
 
 
@@ -46,15 +48,21 @@ number_subtract = $(call _pnumber,$(call int_subtract,$($(word 1,$(1))_value),$(
 number_multiply = $(call _pnumber,$(call int_multiply,$($(word 1,$(1))_value),$($(word 2,$(1))_value)))
 number_divide = $(call _pnumber,$(call int_divide,$($(word 1,$(1))_value),$($(word 2,$(1))_value)))
 
+time_secs = $(call _number,$(shell echo $$(( $$(date +%s) % 65536 ))))
+
 
 # String functions
+
+string? = $(if $(call _string?,$(1)),$(__true),$(__false))
 
 pr_str  = $(call _string,$(call _pr_str_mult,$(1),yes, ))
 str     = $(call _string,$(call _pr_str_mult,$(1),,))
 prn     = $(info $(call _pr_str_mult,$(1),yes, ))
 println = $(info $(subst \n,$(NEWLINE),$(call _pr_str_mult,$(1),, )))
 
-string? = $(if $(call _string?,$(1)),$(__true),$(__false))
+readline= $(foreach res,$(call _string,$(call READLINE,"$(call str_decode,$($(1)_value))")),$(if $(READLINE_EOF),$(__nil),$(res)))
+read_str= $(call READ_STR,$(1))
+slurp   = $(call _string,$(call _read_file,$(call str_decode,$($(1)_value))))
 
 subs = $(strip \
          $(foreach start,$(call gmsl_plus,1,$(call int_decode,$($(word 2,$(1))_value))),\
@@ -102,9 +110,11 @@ vals = $(foreach new_list,$(call _list),$(new_list)$(eval $(new_list)_value := $
 # retrieve the value of a string key object from the hash map, or
 # retrive a vector by number object index
 get = $(strip \
-        $(if $(call _hash_map?,$(word 1,$(1))),\
-          $(call _get,$(word 1,$(1)),$(call str_decode,$($(word 2,$(1))_value))),\
-          $(call _get,$(word 1,$(1)),$(call int_decode,$($(word 2,$(1))_value)))))
+        $(if $(call _nil?,$(word 1,$(1))),\
+          $(__nil),\
+          $(if $(call _hash_map?,$(word 1,$(1))),\
+            $(call _get,$(word 1,$(1)),$(call str_decode,$($(word 2,$(1))_value))),\
+            $(call _get,$(word 1,$(1)),$(call int_decode,$($(word 2,$(1))_value))))))
 
 contains? = $(if $(call _contains?,$(word 1,$(1)),$(call str_decode,$($(word 2,$(1))_value))),$(__true),$(__false))
 
@@ -203,10 +213,14 @@ core_ns = type obj_type \
           symbol? symbol? \
           function? function? \
           string? string? \
+          \
           pr-str pr_str \
           str str \
           prn prn \
           println println \
+          readline readline \
+          read-string read_str \
+          slurp slurp \
           subs subs \
           number? number? \
           < number_lt \
@@ -217,6 +231,7 @@ core_ns = type obj_type \
           - number_subtract \
           * number_multiply \
           / number_divide \
+          time-secs time_secs \
           \
           list _list \
           list? list? \

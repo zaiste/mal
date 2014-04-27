@@ -80,7 +80,9 @@ public class step5_tco {
                 val = ((MalList)a1).nth(i+1);
                 let_env.set(key.getName(), EVAL(val, let_env));
             }
-            return EVAL(a2, let_env);
+            orig_ast = a2;
+            env = let_env;
+            break;
         case "do":
             eval_ast(ast.slice(1, ast.size()-1), env);
             orig_ast = ast.nth(ast.size()-1);
@@ -115,7 +117,7 @@ public class step5_tco {
             MalVal fnast = f.getAst();
             if (fnast != null) {
                 orig_ast = fnast;
-                env = new Env(f.getEnv(), f.getParams(), el.slice(1));
+                env = f.genEnv(el.slice(1));
             } else {
                 return f.apply(el.rest());
             }
@@ -129,22 +131,22 @@ public class step5_tco {
         return printer._pr_str(exp, true);
     }
 
-    // REPL
+    // repl
     public static MalVal RE(Env env, String str) throws MalThrowable {
         return EVAL(READ(str), env);
-    }
-    public static Env _ref(Env env, String name, MalVal mv) {
-        return env.set(name, mv);
     }
 
     public static void main(String[] args) throws MalThrowable {
         String prompt = "user> ";
 
         Env repl_env = new Env(null);
+
+        // core.java: defined using Java
         for (String key : core.ns.keySet()) {
-            _ref(repl_env, key, core.ns.get(key));
+            repl_env.set(key, core.ns.get(key));
         }
 
+        // core.mal: defined using the language itself
         RE(repl_env, "(def! not (fn* (a) (if a false true)))");
         
         if (args.length > 0 && args[0].equals("--raw")) {
@@ -165,11 +167,11 @@ public class step5_tco {
                 System.out.println(PRINT(RE(repl_env, line)));
             } catch (MalContinue e) {
                 continue;
-            } catch (reader.ParseError e) {
-                System.out.println(e.getMessage());
-                continue;
             } catch (MalThrowable t) {
                 System.out.println("Error: " + t.getMessage());
+                continue;
+            } catch (Throwable t) {
+                System.out.println("Uncaught " + t + ": " + t.getMessage());
                 continue;
             }
         }

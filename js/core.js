@@ -4,6 +4,8 @@ if (typeof module === 'undefined') {
     var exports = core;
 } else {
     var types = require('./types'),
+        readline = require('./node_readline'),
+        reader = require('./reader'),
         printer = require('./printer');
 }
 
@@ -36,6 +38,25 @@ function println() {
     }));
 }
 
+function slurp(f) {
+    if (typeof require !== 'undefined') {
+        return require('fs').readFileSync(f, 'utf-8');
+    } else {
+        var req = new XMLHttpRequest();
+        req.open("GET", f, false);
+        req.send();
+        if (req.status == 200) {
+            return req.responseText;
+        } else {
+            throw new Error("Failed to slurp file: " + f);
+        }
+    }
+}
+
+
+// Number functions
+function time_ms() { return new Date().getTime(); }
+
 
 // Hash Map functions
 function assoc(src_hm) {
@@ -51,7 +72,7 @@ function dissoc(src_hm) {
 }
 
 function get(hm, key) {
-    if (key in hm) {
+    if (hm != null && key in hm) {
         return hm[key];
     } else {
         return null;
@@ -144,10 +165,14 @@ var ns = {'type': types._obj_type,
           'false?': types._false_Q,
           'symbol': types._symbol,
           'symbol?': types._symbol_Q,
+
           'pr-str': pr_str,
           'str': str,
           'prn': prn,
           'println': println,
+          'readline': readline.readline,
+          'read-string': reader.read_str,
+          'slurp': slurp,
           '<'  : function(a,b){return a<b;},
           '<=' : function(a,b){return a<=b;},
           '>'  : function(a,b){return a>b;},
@@ -156,6 +181,7 @@ var ns = {'type': types._obj_type,
           '-'  : function(a,b){return a-b;},
           '*'  : function(a,b){return a*b;},
           '/'  : function(a,b){return a/b;},
+          "time-ms": time_ms,
 
           'list': types._list,
           'list?': types._list_Q,
@@ -178,9 +204,9 @@ var ns = {'type': types._obj_type,
           'rest': rest,
           'empty?': empty_Q,
           'count': count,
-          'conj': conj,
           'apply': apply,
           'map': map,
+          'conj': conj,
 
           'with-meta': with_meta,
           'meta': meta,

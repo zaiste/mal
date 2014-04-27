@@ -100,14 +100,15 @@ function _symbol_Q(obj) { return obj instanceof Symbol; }
 
 
 // Functions
-function _function(Eval, Env, exp, env, params) {
-    var f = function() {
-        // TODO: figure out why this throws with 'and' macro
-        //throw new Error("Attempt to invoke mal function directly");
-        return Eval(exp, new Env(env, params, arguments));
+function _function(Eval, Env, ast, env, params) {
+    var fn = function() {
+        return Eval(ast, new Env(env, params, arguments));
     };
-    f.__meta__ = {exp: exp, env: env, params: params};
-    return f;
+    fn.__meta__ = null;
+    fn.__ast__ = ast;
+    fn.__gen_env__ = function(args) { return new Env(env, params, args); };
+    fn._ismacro_ = false;
+    return fn;
 }
 function _function_Q(obj) { return typeof obj == "function"; }
 Function.prototype.clone = function() {
@@ -131,7 +132,7 @@ function _vector() {
     v.__isvector__ = true;
     return v;
 }
-function _vector_Q(obj) { return Array.isArray(obj) && obj.__isvector__; }
+function _vector_Q(obj) { return Array.isArray(obj) && !!obj.__isvector__; }
 
 
 

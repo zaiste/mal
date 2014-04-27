@@ -1,8 +1,10 @@
-import copy
+import copy, time
 from itertools import chain
 
 import mal_types as types
 from mal_types import List, Vector
+import mal_readline
+import reader
 import printer
 
 # Errors/Exceptions
@@ -17,12 +19,12 @@ def do_str(*args):
     return "".join(map(lambda exp: printer._pr_str(exp, False), args))
 
 def prn(*args):
-    print " ".join(map(lambda exp: printer._pr_str(exp, True), args))
+    print(" ".join(map(lambda exp: printer._pr_str(exp, True), args)))
     return None
 
 def println(*args):
     line = " ".join(map(lambda exp: printer._pr_str(exp, False), args))
-    print line.replace('\\n', '\n')
+    print(line.replace('\\n', '\n'))
     return None
 
 
@@ -39,7 +41,7 @@ def dissoc(src_hm, *keys):
     return hm
 
 def get(hm, key):
-    if key in hm:
+    if hm and key in hm:
         return hm[key]
     else:
         return None
@@ -85,7 +87,7 @@ def mapf(f, lst): return List(map(f, lst))
 
 # Metadata functions
 def with_meta(obj, meta):
-    new_obj = copy.copy(obj)
+    new_obj = types._clone(obj)
     new_obj.__meta__ = meta
     return new_obj
 
@@ -112,10 +114,14 @@ ns = {
         'false?': types._false_Q,
         'symbol': types._symbol,
         'symbol?': types._symbol_Q,
+
         'pr-str': pr_str,
         'str': do_str,
         'prn': prn,
         'println': println,
+        'readline': lambda prompt: mal_readline.readline(prompt),
+        'read-string': reader.read_str,
+        'slurp': lambda file: open(file).read(),
         '<':  lambda a,b: a<b,
         '<=': lambda a,b: a<=b,
         '>':  lambda a,b: a>b,
@@ -123,7 +129,8 @@ ns = {
         '+':  lambda a,b: a+b,
         '-':  lambda a,b: a-b,
         '*':  lambda a,b: a*b,
-        '/':  lambda a,b: a/b,
+        '/':  lambda a,b: int(a/b),
+        'time-ms': lambda : int(time.time() * 1000),
 
         'list': types._list,
         'list?': types._list_Q,

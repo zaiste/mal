@@ -1,18 +1,12 @@
-
-TESTS =
-
-SOURCES = src/readline.clj src/reader.clj src/printer.clj \
-	  src/env.clj src/core.clj src/stepA_more.clj
+SOURCES_BASE = src/readline.clj src/reader.clj src/printer.clj
+SOURCES_LISP = src/env.clj src/core.clj src/stepA_more.clj
+SOURCES = $(SOURCES_BASE) $(SOURCES_LISP)
 
 all:
 
-.PHONY: stats tests $(TESTS)
+.PHONY: stats
 
 stats: $(SOURCES)
 	@wc $^
-
-tests: $(TESTS)
-
-$(TESTS):
-	@echo "Running $@"; \
-	lein with-profile XXX$@XXX trampoline run || exit 1; \
+stats-lisp: $(SOURCES_LISP)
+	@wc $^

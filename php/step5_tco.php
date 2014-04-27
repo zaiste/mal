@@ -56,11 +56,13 @@ function MAL_EVAL($ast, $env) {
         for ($i=0; $i < count($a1); $i+=2) {
             $let_env->set($a1[$i]->value, MAL_EVAL($a1[$i+1], $let_env));
         }
-        return MAL_EVAL($ast[2], $let_env);
+        $ast = $ast[2];
+        $env = $let_env;
+        break; // Continue loop (TCO)
     case "do":
         eval_ast($ast->slice(1, -1), $env);
         $ast = $ast[count($ast)-1];
-        break;
+        break; // Continue loop (TCO)
     case "if":
         $cond = MAL_EVAL($ast[1], $env);
         if ($cond === NULL || $cond === false) {
@@ -69,19 +71,18 @@ function MAL_EVAL($ast, $env) {
         } else {
             $ast = $ast[2];
         }
-        break;
+        break; // Continue loop (TCO)
     case "fn*":
         return _function('MAL_EVAL', 'native',
-                         _hash_map('exp', $ast[2],
-                                   'env', $env,
-                                   'params', $ast[1]));
+                         $ast[2], $env, $ast[1]);
     default:
         $el = eval_ast($ast, $env);
         $f = $el[0];
         $args = array_slice($el->getArrayCopy(), 1);
         if ($f->type === 'native') {
-            $ast = $f->meta['exp'];
-            $env = new Env($f->meta['env'], $f->meta['params'], $args);
+            $ast = $f->ast;
+            $env = $f->gen_env($args);
+            // Continue loop (TCO)
         } else {
             return $f->apply($args);
         }
@@ -101,16 +102,16 @@ function rep($str) {
     global $repl_env;
     return MAL_PRINT(MAL_EVAL(READ($str), $repl_env));
 }
-function _ref($k, $v) {
-    global $repl_env;
+
+// core.php: defined using PHP
+foreach ($core_ns as $k=>$v) {
     $repl_env->set($k, _function($v));
 }
-// Import core functions
-foreach ($core_ns as $k=>$v) { _ref($k, $v); }
 
-// Defined using the language itself
+// core.mal: defined using the language itself
 rep("(def! not (fn* (a) (if a false true)))");
 
+// repl loop
 do {
     try {
         $line = mal_readline("user> ");
@@ -126,4 +127,4 @@ do {
     }
 } while (true);
 
-?> 
+?>

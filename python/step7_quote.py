@@ -46,7 +46,7 @@ def eval_ast(ast, env):
 
 def EVAL(ast, env):
     while True:
-        #print("EVAL %s" % ast)
+        #print("EVAL %s" % printer._pr_str(ast))
         if not types._list_Q(ast):
             return eval_ast(ast, env)
 
@@ -63,11 +63,14 @@ def EVAL(ast, env):
             let_env = Env(env)
             for i in range(0, len(a1), 2):
                 let_env.set(a1[i], EVAL(a1[i+1], let_env))
-            return EVAL(a2, let_env)
+            ast = a2
+            env = let_env
+            # Continue loop (TCO)
         elif "quote" == a0:
             return ast[1]
         elif "quasiquote" == a0:
-            return EVAL(quasiquote(ast[1]), env)
+            ast = quasiquote(ast[1]);
+            # Continue loop (TCO)
         elif "do" == a0:
             eval_ast(ast[1:-1], env)
             ast = ast[-1]
@@ -87,10 +90,9 @@ def EVAL(ast, env):
         else:
             el = eval_ast(ast, env)
             f = el[0]
-            if hasattr(f, '__meta__') and f.__meta__.has_key("exp"):
-                m = f.__meta__
-                ast = m['exp']
-                env = Env(m['env'], m['params'], el[1:])
+            if hasattr(f, '__ast__'):
+                ast = f.__ast__
+                env = f.__gen_env__(el[1:])
             else:
                 return f(*el[1:])
 
@@ -102,28 +104,27 @@ def PRINT(exp):
 repl_env = Env()
 def REP(str):
     return PRINT(EVAL(READ(str), repl_env))
-def _ref(k,v): repl_env.set(k, v)
 
-# Import types functions
-for name, val in core.ns.items(): _ref(name, val)
+# core.py: defined using python
+for k, v in core.ns.items(): repl_env.set(k, v)
+repl_env.set('eval', lambda ast: EVAL(ast, repl_env))
+repl_env.set('*ARGV*', types._list(*sys.argv[2:]))
 
-_ref('read-string', reader.read_str)
-_ref('eval', lambda ast: EVAL(ast, repl_env))
-_ref('slurp', lambda file: open(file).read())
-
-# Defined using the language itself
+# core.mal: defined using the language itself
 REP("(def! not (fn* (a) (if a false true)))")
 REP("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))")
 
 if len(sys.argv) >= 2:
     REP('(load-file "' + sys.argv[1] + '")')
-else:
-    while True:
-        try:
-            line = mal_readline.readline("user> ")
-            if line == None: break
-            if line == "": continue
-            print(REP(line))
-        except reader.Blank: continue
-        except Exception as e:
-            print "".join(traceback.format_exception(*sys.exc_info()))
+    sys.exit(0)
+
+# repl loop
+while True:
+    try:
+        line = mal_readline.readline("user> ")
+        if line == None: break
+        if line == "": continue
+        print(REP(line))
+    except reader.Blank: continue
+    except Exception as e:
+        print("".join(traceback.format_exception(*sys.exc_info())))

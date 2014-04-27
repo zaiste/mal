@@ -36,7 +36,7 @@ function eval_ast(ast, env) {
 function _EVAL(ast, env) {
     while (true) {
 
-    //printer.println("EVAL:", types._pr_str(ast, true));
+    //printer.println("EVAL:", printer._pr_str(ast, true));
     if (!types._list_Q(ast)) {
         return eval_ast(ast, env);
     }
@@ -52,7 +52,9 @@ function _EVAL(ast, env) {
         for (var i=0; i < a1.length; i+=2) {
             let_env.set(a1[i].value, EVAL(a1[i+1], let_env));
         }
-        return EVAL(a2, let_env);
+        ast = a2;
+        env = let_env;
+        break;
     case "do":
         eval_ast(ast.slice(1, -1), env);
         ast = ast[ast.length-1];
@@ -68,10 +70,10 @@ function _EVAL(ast, env) {
     case "fn*":
         return types._function(EVAL, Env, a2, env, a1);
     default:
-        var el = eval_ast(ast, env), f = el[0], meta = f.__meta__;
-        if (meta && meta.exp) {
-            ast = meta.exp;
-            env = new Env(meta.env, meta.params, el.slice(1));
+        var el = eval_ast(ast, env), f = el[0];
+        if (f.__ast__) {
+            ast = f.__ast__;
+            env = f.__gen_env__(el.slice(1));
         } else {
             return f.apply(f, el.slice(1));
         }
@@ -93,23 +95,15 @@ function PRINT(exp) {
 // repl
 var repl_env = new Env();
 var rep = function(str) { return PRINT(EVAL(READ(str), repl_env)); };
-_ref = function (k,v) { repl_env.set(k, v); }
 
-// Import core functions
+// core.js: defined using javascript
 for (var n in core.ns) { repl_env.set(n, core.ns[n]); }
 
-// Defined using the language itself
+// core.mal: defined using the language itself
 rep("(def! not (fn* (a) (if a false true)))");
 
-if (typeof require === 'undefined') {
-    // Asynchronous browser mode
-    readline.rlwrap(function(line) { return rep(line); },
-                    function(exc) {
-                        if (exc instanceof reader.BlankException) { return; }
-                        if (exc.stack) { printer.println(exc.stack); }
-                        else           { printer.println(exc); }
-                    });
-} else if (require.main === module) {
+// repl loop
+if (typeof require !== 'undefined' && require.main === module) {
     // Synchronous node.js commandline mode
     while (true) {
         var line = readline.readline("user> ");
@@ -122,6 +116,4 @@ if (typeof require === 'undefined') {
             else           { printer.println(exc); }
         }
     }
-} else {
-    exports.rep = rep;
 }

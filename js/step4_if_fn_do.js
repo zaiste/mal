@@ -34,6 +34,7 @@ function eval_ast(ast, env) {
 }
 
 function _EVAL(ast, env) {
+    //printer.println("EVAL:", printer._pr_str(ast, true));
     if (!types._list_Q(ast)) {
         return eval_ast(ast, env);
     }
@@ -83,23 +84,15 @@ function PRINT(exp) {
 // repl
 var repl_env = new Env();
 var rep = function(str) { return PRINT(EVAL(READ(str), repl_env)); };
-_ref = function (k,v) { repl_env.set(k, v); }
 
-// Import core functions
+// core.js: defined using javascript
 for (var n in core.ns) { repl_env.set(n, core.ns[n]); }
 
-// Defined using the language itself
+// core.mal: defined using the language itself
 rep("(def! not (fn* (a) (if a false true)))");
 
-if (typeof require === 'undefined') {
-    // Asynchronous browser mode
-    readline.rlwrap(function(line) { return rep(line); },
-                    function(exc) {
-                        if (exc instanceof reader.BlankException) { return; }
-                        if (exc.stack) { printer.println(exc.stack); }
-                        else           { printer.println(exc); }
-                    });
-} else if (require.main === module) {
+// repl loop
+if (typeof require !== 'undefined' && require.main === module) {
     // Synchronous node.js commandline mode
     while (true) {
         var line = readline.readline("user> ");
@@ -112,6 +105,4 @@ if (typeof require === 'undefined') {
             else           { printer.println(exc); }
         }
     }
-} else {
-    exports.rep = rep;
 }

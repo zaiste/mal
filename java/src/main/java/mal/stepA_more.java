@@ -1,10 +1,7 @@
 package mal;
 
 import java.io.IOException;
-import java.io.FileNotFoundException;
 
-import java.util.Scanner;
-import java.io.File;
 import java.io.StringWriter;
 import java.io.PrintWriter;
 import java.util.List;
@@ -140,11 +137,14 @@ public class stepA_more {
                 val = ((MalList)a1).nth(i+1);
                 let_env.set(key.getName(), EVAL(val, let_env));
             }
-            return EVAL(a2, let_env);
+            orig_ast = a2;
+            env = let_env;
+            break;
         case "quote":
             return ast.nth(1);
         case "quasiquote":
-            return EVAL(quasiquote(ast.nth(1)), env);
+            orig_ast = quasiquote(ast.nth(1));
+            break;
         case "defmacro!":
             a1 = ast.nth(1);
             a2 = ast.nth(2);
@@ -213,7 +213,7 @@ public class stepA_more {
             MalVal fnast = f.getAst();
             if (fnast != null) {
                 orig_ast = fnast;
-                env = new Env(f.getEnv(), f.getParams(), el.slice(1));
+                env = f.genEnv(el.slice(1));
             } else {
                 return f.apply(el.rest());
             }
@@ -227,66 +227,38 @@ public class stepA_more {
         return printer._pr_str(exp, true);
     }
 
-    // REPL
+    // repl
     public static MalVal RE(Env env, String str) throws MalThrowable {
         return EVAL(READ(str), env);
-    }
-    public static Env _ref(Env env, String name, MalVal mv) {
-        return env.set(name, mv);
-    }
-    public static String slurp(String fname) throws MalThrowable {
-        try {
-            return new Scanner(new File(fname))
-                .useDelimiter("\\Z").next();
-        } catch (FileNotFoundException e) {
-            throw new MalError(e.getMessage());
-        }
     }
 
     public static void main(String[] args) throws MalThrowable {
         String prompt = "user> ";
 
         final Env repl_env = new Env(null);
+
+        // core.java: defined using Java
         for (String key : core.ns.keySet()) {
-            _ref(repl_env, key, core.ns.get(key));
+            repl_env.set(key, core.ns.get(key));
         }
-        _ref(repl_env, "readline", new MalFunction() {
-            public MalVal apply(MalList args) throws MalThrowable {
-                String prompt = ((MalString)args.nth(0)).getValue();
-                try {
-                    return new MalString(readline.readline(prompt));
-                } catch (IOException e) {
-                    throw new MalException(new MalString(e.getMessage()));
-                } catch (readline.EOFException e) {
-                    throw new MalException(new MalString(e.getMessage()));
-                }
-            }
-        });
-        _ref(repl_env, "read-string", new MalFunction() {
-            public MalVal apply(MalList args) throws MalThrowable {
-                try {
-                    return reader.read_str(((MalString)args.nth(0)).getValue());
-                } catch (MalContinue c) {
-                    return types.Nil;
-                }
-            }
-        });
-        _ref(repl_env, "eval", new MalFunction() {
+        repl_env.set("eval", new MalFunction() {
             public MalVal apply(MalList args) throws MalThrowable {
                 return EVAL(args.nth(0), repl_env);
             }
         });
-        _ref(repl_env, "slurp", new MalFunction() {
-            public MalVal apply(MalList args) throws MalThrowable {
-                String fname = ((MalString)args.nth(0)).getValue();
-                return new MalString(slurp(fname));
-            }
-        });
+        MalList _argv = new MalList();
+        for (Integer i=1; i < args.length; i++) {
+            _argv.conj_BANG(new MalString(args[i]));
+        }
+        repl_env.set("*ARGV*", _argv);
 
+
+        // core.mal: defined using the language itself
+        RE(repl_env, "(def! *host-language* \"java\")");
         RE(repl_env, "(def! not (fn* (a) (if a false true)))");
+        RE(repl_env, "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))");
         RE(repl_env, "(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))");
         RE(repl_env, "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))");
-        RE(repl_env, "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))");
         
         Integer fileIdx = 0;
         if (args.length > 0 && args[0].equals("--raw")) {
@@ -294,11 +266,12 @@ public class stepA_more {
             fileIdx = 1;
         }
         if (args.length > fileIdx) {
-            for(Integer i=fileIdx; i<args.length; i++) {
-                RE(repl_env, "(load-file \"" + args[i] + "\")");
-            }
+            RE(repl_env, "(load-file \"" + args[fileIdx] + "\")");
             return;
         }
+
+        // repl loop
+        RE(repl_env, "(println (str \"Mal [\" *host-language* \"]\"))");
         while (true) {
             String line;
             try {
@@ -314,14 +287,14 @@ public class stepA_more {
                 System.out.println(PRINT(RE(repl_env, line)));
             } catch (MalContinue e) {
                 continue;
-            } catch (reader.ParseError e) {
-                System.out.println(e.getMessage());
-                continue;
             } catch (MalException e) {
                 System.out.println("Error: " + printer._pr_str(e.getValue(), false));
                 continue;
             } catch (MalThrowable t) {
                 System.out.println("Error: " + t.getMessage());
+                continue;
+            } catch (Throwable t) {
+                System.out.println("Uncaught " + t + ": " + t.getMessage());
                 continue;
             }
         }

@@ -26,7 +26,7 @@ def eval_ast(ast, env):
         return ast  # primitive value, return unchanged
 
 def EVAL(ast, env):
-        #print("EVAL %s" % ast)
+        #print("EVAL %s" % printer._pr_str(ast))
         if not types._list_Q(ast):
             return eval_ast(ast, env)
 
@@ -57,13 +57,13 @@ def PRINT(exp):
 repl_env = Env()
 def REP(str):
     return PRINT(EVAL(READ(str), repl_env))
-def _ref(k,v): repl_env.set(k, v)
 
-_ref('+', lambda a,b: a+b)
-_ref('-', lambda a,b: a-b)
-_ref('*', lambda a,b: a*b)
-_ref('/', lambda a,b: a/b)
+repl_env.set('+', lambda a,b: a+b)
+repl_env.set('-', lambda a,b: a-b)
+repl_env.set('*', lambda a,b: a*b)
+repl_env.set('/', lambda a,b: int(a/b))
 
+# repl loop
 while True:
     try:
         line = mal_readline.readline("user> ")
@@ -72,4 +72,4 @@ while True:
         print(REP(line))
     except reader.Blank: continue
     except Exception as e:
-        print "".join(traceback.format_exception(*sys.exc_info()))
+        print("".join(traceback.format_exception(*sys.exc_info())))

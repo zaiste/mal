@@ -60,13 +60,13 @@
           (let [let-env (env/env env)]
             (doseq [[b e] (partition 2 a1)]
               (env/env-set let-env b (EVAL e let-env)))
-            (EVAL a2 let-env))
+            (recur a2 let-env))
 
           'quote
           a1
 
           'quasiquote
-          (EVAL (quasiquote a1) env)
+          (recur (quasiquote a1) env)
   
           'do
           (do (eval-ast (->> ast (drop-last) (drop 1)) env)
@@ -81,11 +81,12 @@
               (recur a2 env)))
   
           'fn*
-          ^{:expression a2
-            :environment env
-            :parameters a1}
-          (fn [& args]
-            (EVAL a2 (env/env env a1 args)))
+          (with-meta
+            (fn [& args]
+              (EVAL a2 (env/env env a1 args)))
+            {:expression a2
+             :environment env
+             :parameters a1})
   
           ;; apply
           (let [el (eval-ast ast env)
@@ -105,28 +106,28 @@
   [strng]
   (PRINT (EVAL (READ strng) repl-env)))
 
-(defn _ref [k,v] (env/env-set repl-env k v))
+;; core.clj: defined using Clojure
+(doseq [[k v] core/core_ns] (env/env-set repl-env k v))
+(env/env-set repl-env 'eval (fn [ast] (EVAL ast repl-env)))
+(env/env-set repl-env '*ARGV* ())
 
-;; Import types related functions
-(doseq [[k v] core/core_ns] (_ref k v))
-
-;; Defined using the language itself
-(_ref 'read-string reader/read-string)
-(_ref 'eval (fn [ast] (EVAL ast repl-env)))
-(_ref 'slurp slurp)
-
+;; core.mal: defined using the language itself
 (rep "(def! not (fn* [a] (if a false true)))")
 (rep "(def! load-file (fn* [f] (eval (read-string (str \"(do \" (slurp f) \")\")))))")
 
+;; repl loop
+(defn repl-loop []
+  (let [line (readline/readline "user> ")]
+    (when line
+      (when-not (re-seq #"^\s*$|^\s*;.*$" line) ; blank/comment
+        (try
+          (println (rep line))
+          (catch Throwable e
+            (clojure.repl/pst e))))
+      (recur))))
+
 (defn -main [& args]
+  (env/env-set repl-env '*ARGV* (rest args))
   (if args
     (rep (str "(load-file \"" (first args) "\")"))
-    (loop []
-      (let [line (readline/readline "user> ")]
-        (when line
-          (when-not (re-seq #"^\s*$|^\s*;.*$" line) ; blank/comment
-            (try
-              (println (rep line))
-              (catch Throwable e
-                (clojure.repl/pst e))))
-          (recur))))))
+    (repl-loop)))

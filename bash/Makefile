@@ -1,6 +1,6 @@
-TESTS = tests/types.sh tests/reader.sh
-
-SOURCES = types.sh reader.sh printer.sh env.sh core.sh stepA_more.sh
+SOURCES_BASE = types.sh reader.sh printer.sh
+SOURCES_LISP = env.sh core.sh stepA_more.sh
+SOURCES = $(SOURCES_BASE) $(SOURCES_LISP)
 
 all: mal.sh
 
@@ -13,13 +13,9 @@ mal.sh: $(SOURCES)
 clean:
 	rm -f mal.sh
 
-.PHONY: stats tests $(TESTS)
+.PHONY: stats
 
 stats: $(SOURCES)
 	@wc $^
-
-tests: $(TESTS)
-
-$(TESTS):
-	@echo "Running $@"; \
-	bash $@ || exit 1; \
+stats-lisp: $(SOURCES_LISP)
+	@wc $^

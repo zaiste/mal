@@ -6,6 +6,7 @@ if [ -z "${__mal_core_included__}" ]; then
 __mal_core_included=true
 
 source $(dirname $0)/types.sh
+source $(dirname $0)/reader.sh
 source $(dirname $0)/printer.sh
 
 # Exceptions/Errors
@@ -55,6 +56,12 @@ num_gte      () { r=$(( ${ANON["${1}"]} >= ${ANON["${2}"]} )); _num_bool "${r}";
 num_lt       () { r=$(( ${ANON["${1}"]} <  ${ANON["${2}"]} )); _num_bool "${r}"; }
 num_lte      () { r=$(( ${ANON["${1}"]} <= ${ANON["${2}"]} )); _num_bool "${r}"; }
 
+# return number of milliseconds since epoch
+time_ms () {
+    local ms=$(date +%s%3N)
+    _number "${ms}"
+}
+
 
 # String functions
 
@@ -85,6 +92,21 @@ println () {
     res="${res//\\n/$'\n'}"
     echo -e "${res:1}"
     r="${__nil}"; 
+}
+
+readline () {
+    READLINE "${ANON["${1}"]}" && _string "${r}" || r="${__nil}"
+}
+
+read_string () {
+    READ_STR "${ANON["${1}"]}"
+}
+
+slurp () {
+    local lines
+    mapfile lines < "${ANON["${1}"]}"
+    local text="${lines[*]}"; text=${text//$'\n' /$'\n'}
+    _string "${text}"
 }
 
 
@@ -145,7 +167,9 @@ _get () {
         local obj="${ANON["${1}"]}"
         eval r="\${${obj}[\"${2}\"]}" ;;
     list|vector)
-        _nth "${1}" "${2}"
+        _nth "${1}" "${2}" ;;
+    nil)
+        r="${__nil}" ;;
     esac
 }
 get () {
@@ -153,11 +177,6 @@ get () {
     [[ "${r}" ]] || r="${__nil}"
 }
 
-_contains? () {
-    local obj="${ANON["${1}"]}"
-    #echo "_contains? ${1} ${2} -> \${${obj}[\"${2}\"]+isset}"
-    eval [[ "\${${obj}[\"${2}\"]+isset}" ]]
-}
 contains? () { _contains? "${1}" "${ANON["${2}"]}" && r="${__true}" || r="${__false}"; }
 
 keys () {
@@ -211,29 +230,6 @@ concat () {
 
 nth () {
     _nth "${1}" "${ANON["${2}"]}"
-}
-
-first () {
-    local temp="${ANON["${1}"]}"
-    r="${temp%% *}"
-    [ "${r}" ] || r="${__nil}"
-}
-
-# Creates a new vector/list of the everything after but the first
-# element
-rest () {
-    local temp="${ANON["${1}"]}"
-    _list
-    if [[ "${temp#* }" == "${temp}" ]]; then
-        ANON["${r}"]=
-    else
-        ANON["${r}"]="${temp#* }"
-    fi
-}
-
-last () {
-    local temp="${ANON["${1}"]}"
-    r="${temp##* }"
 }
 
 empty? () { _empty? "${1}" && r="${__true}" || r="${__false}"; }
@@ -290,7 +286,7 @@ meta () {
 }
 
 
-# atoms
+# Atom functions
 
 atom? () { _atom? "${1}" && r="${__true}" || r="${__false}"; }
 deref () {
@@ -321,10 +317,14 @@ declare -A core_ns=(
     [true?]=true?
     [false?]=false?
     [symbol?]=symbol?
+
     [pr-str]=pr_str
     [str]=str
     [prn]=prn
     [println]=println
+    [readline]=readline
+    [read-string]=read_string
+    [slurp]=slurp
     [<]=num_lt
     [<=]=num_lte
     [>]=num_gt
@@ -333,6 +333,7 @@ declare -A core_ns=(
     [-]=num_minus
     [__STAR__]=num_multiply
     [/]=num_divide
+    [time-ms]=time_ms
 
     [list]=_list
     [list?]=list?
@@ -351,8 +352,8 @@ declare -A core_ns=(
     [cons]=cons
     [concat]=concat
     [nth]=nth
-    [first]=first
-    [rest]=rest
+    [first]=_first
+    [rest]=_rest
     [empty?]=empty?
     [count]=count
     [conj]=conj

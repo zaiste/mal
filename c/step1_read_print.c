@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+
 #include "types.h"
 #include "readline.h"
 #include "reader.h"
@@ -63,10 +64,10 @@ int main()
     // Set the initial prompt
     snprintf(prompt, sizeof(prompt), "user> ");
  
-    // REPL loop
+    // repl loop
     for(;;) {
         exp = RE(NULL, prompt, NULL);
-        if (mal_error && strcmp("EOF", mal_error) == 0) {
+        if (mal_error && strcmp("EOF", mal_error->val.string) == 0) {
             return 0;
         }
         output = PRINT(exp);

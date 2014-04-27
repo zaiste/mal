@@ -43,7 +43,7 @@
           (let [let-env (env/env env)]
             (doseq [[b e] (partition 2 a1)]
               (env/env-set let-env b (EVAL e let-env)))
-            (EVAL a2 let-env))
+            (recur a2 let-env))
   
           'do
           (do (eval-ast (->> ast (drop-last) (drop 1)) env)
@@ -58,11 +58,12 @@
               (recur a2 env)))
   
           'fn*
-          ^{:expression a2
-            :environment env
-            :parameters a1}
-          (fn [& args]
-            (EVAL a2 (env/env env a1 args)))
+          (with-meta
+            (fn [& args]
+              (EVAL a2 (env/env env a1 args)))
+            {:expression a2
+             :environment env
+             :parameters a1})
   
           ;; apply
           (let [el (eval-ast ast env)
@@ -80,23 +81,24 @@
 (def repl-env (env/env))
 (defn rep
   [strng]
-  (PRINT (EVAL (READ strng), repl-env)))
+  (PRINT (EVAL (READ strng) repl-env)))
 
-(defn _ref [k,v] (env/env-set repl-env k v))
+;; core.clj: defined using Clojure
+(doseq [[k v] core/core_ns] (env/env-set repl-env k v))
 
-;; Import types related functions
-(doseq [[k v] core/core_ns] (_ref k v))
-
-;; Defined using the language itself
+;; core.mal: defined using the language itself
 (rep "(def! not (fn* [a] (if a false true)))")
 
+;; repl loop
+(defn repl-loop []
+  (let [line (readline/readline "user> ")]
+    (when line
+      (when-not (re-seq #"^\s*$|^\s*;.*$" line) ; blank/comment
+        (try
+          (println (rep line))
+          (catch Throwable e
+            (clojure.repl/pst e))))
+      (recur))))
+
 (defn -main [& args]
-  (loop []
-    (let [line (readline/readline "user> ")]
-      (when line
-        (when-not (re-seq #"^\s*$|^\s*;.*$" line) ; blank/comment
-          (try
-            (println (rep line))
-            (catch Throwable e
-              (clojure.repl/pst e))))
-        (recur)))))
+  (repl-loop))

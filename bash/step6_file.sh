@@ -1,18 +1,17 @@
 #!/bin/bash
 
-INTERACTIVE=${INTERACTIVE-yes}
-
 source $(dirname $0)/reader.sh
 source $(dirname $0)/printer.sh
-source $(dirname $0)/core.sh
 source $(dirname $0)/env.sh
+source $(dirname $0)/core.sh
 
-# READ: read and parse input
+# read
 READ () {
-    READLINE
+    [ "${1}" ] && r="${1}" || READLINE
     READ_STR "${r}"
 }
 
+# eval
 EVAL_AST () {
     local ast="${1}" env="${2}"
     #_pr_str "${ast}"; echo "EVAL_AST '${ast}:${r} / ${env}'"
@@ -41,7 +40,6 @@ EVAL_AST () {
     esac
 }
 
-# EVAL: evaluate the parameter
 EVAL () {
     local ast="${1}" env="${2}"
     while true; do
@@ -73,13 +71,15 @@ EVAL () {
                   ENV_SET "${let_env}" "${ANON["${let_pairs[${idx}]}"]}" "${r}"
                   idx=$(( idx + 2))
               done
-              EVAL "${a2}" "${let_env}"
-              return ;;
+              ast="${a2}"
+              env="${let_env}"
+              # Continue loop
+              ;;
         do)   _count "${ast}"
               _slice "${ast}" 1 $(( ${r} - 2 ))
               EVAL_AST "${r}" "${env}"
               [[ "${__ERROR}" ]] && r= && return 1
-              last "${ast}"
+              _last "${ast}"
               ast="${r}"
               # Continue loop
               ;;
@@ -106,8 +106,8 @@ EVAL () {
         *)    EVAL_AST "${ast}" "${env}"
               [[ "${__ERROR}" ]] && r= && return 1
               local el="${r}"
-              first "${el}"; local f="${ANON["${r}"]}"
-              rest "${el}"; local args="${ANON["${r}"]}"
+              _first "${el}"; local f="${ANON["${r}"]}"
+              _rest "${el}"; local args="${ANON["${r}"]}"
               #echo "invoke: [${f}] ${args}"
               if [[ "${f//@/ }" != "${f}" ]]; then
                   set -- ${f//@/ }
@@ -124,7 +124,7 @@ EVAL () {
     done
 }
 
-# PRINT:
+# print
 PRINT () {
     if [[ "${__ERROR}" ]]; then
         _pr_str "${__ERROR}" yes
@@ -135,42 +135,36 @@ PRINT () {
     fi
 }
 
-# REPL: read, eval, print, loop
+# repl
 ENV; REPL_ENV="${r}"
 REP () {
     r=
-    READ_STR "${1}"
-    EVAL "${r}" ${REPL_ENV}
+    READ "${1}" || return 1
+    EVAL "${r}" "${REPL_ENV}"
     PRINT "${r}"
 }
 
+# core.sh: defined using bash
 _fref () { _function "${2} \"\${@}\""; ENV_SET "${REPL_ENV}" "${1}" "${r}"; }
-
-# Import types functions
 for n in "${!core_ns[@]}"; do _fref "${n}" "${core_ns["${n}"]}"; done
-
-read_string () { READ_STR "${ANON["${1}"]}"; }
-_fref "read-string" read_string
 _eval () { EVAL "${1}" "${REPL_ENV}"; }
 _fref "eval" _eval
-slurp () {
-    local lines
-    mapfile lines < "${ANON["${1}"]}"
-    local text="${lines[*]}"; text=${text//$'\n' /$'\n'}
-    _string "${text}"
-}
-_fref "slurp" slurp
+_list; argv="${r}"
+for _arg in "${@:2}"; do _string "${_arg}"; _conj! "${argv}" "${r}"; done
+ENV_SET "${REPL_ENV}" "__STAR__ARGV__STAR__" "${argv}";
 
-# Defined using the language itself
+# core.mal: defined using the language itself
 REP "(def! not (fn* (a) (if a false true)))"
 REP "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))"
 
+# load/run file from command line (then exit)
 if [[ "${1}" ]]; then
-    echo "${@}"
-    REP "(load-file \"${1}\")" && echo "${r}"
-elif [[ -n "${INTERACTIVE}" ]]; then
-    while true; do
-        READLINE "user> " || exit "$?"
-        [[ "${r}" ]] && REP "${r}" && echo "${r}"
-    done
-fi
+    REP "(load-file \"${1}\")"
+    exit 0
+fi 
+
+# repl loop
+while true; do
+    READLINE "user> " || exit "$?"
+    [[ "${r}" ]] && REP "${r}" && echo "${r}"
+done

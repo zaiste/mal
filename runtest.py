@@ -18,6 +18,10 @@ parser.add_argument('--start-timeout', default=10, type=int,
         help="default timeout for initial prompt")
 parser.add_argument('--test-timeout', default=20, type=int,
         help="default timeout for each individual test action")
+parser.add_argument('--pre-eval', default=None, type=str,
+        help="Mal code to evaluate prior to running the test")
+parser.add_argument('--redirect', action='store_true',
+        help="Run implementation in bash and redirect output to /dev/null")
 
 parser.add_argument('test_file', type=argparse.FileType('r'),
         help="a test file formatted as with mal test data")
@@ -30,7 +34,12 @@ test_data = args.test_file.read().split('\n')
 
 if args.rundir: os.chdir(args.rundir)
 
-p = spawn(args.mal_cmd[0], args.mal_cmd[1:])
+if args.redirect:
+    # Redirect to try and force raw mode (no ASCII codes)
+    p = spawn('/bin/bash -c "' + " ".join(args.mal_cmd) + ' |tee /dev/null"')
+else:
+    p = spawn(args.mal_cmd[0], args.mal_cmd[1:])
+
 
 test_idx = 0
 def read_test(data):
@@ -70,14 +79,24 @@ def read_test(data):
 
     return form, output, ret, test_idx
 
+def assert_prompt(timeout):
+    # Wait for the initial prompt
+    idx = p.expect(['user> ', 'mal-user> ', EOF, TIMEOUT],
+                timeout=timeout)
+    if idx not in [0,1]:
+        print "Did not get 'user> ' or 'mal-user> ' prompt"
+        print "    Got      : %s" % repr(p.before)
+        sys.exit(1)
+
 
 # Wait for the initial prompt
-idx = p.expect(['user> ', 'mal-user> ', EOF, TIMEOUT],
-               timeout=args.start_timeout)
-if idx not in [0,1]:
-    print "Never got 'user> ' prompt"
-    print "    Got      : %s" % repr(p.before)
-    sys.exit(1)
+assert_prompt(args.start_timeout)
+
+# Send the pre-eval code if any
+if args.pre_eval:
+    sys.stdout.write("RUNNING pre-eval: %s" % args.pre_eval)
+    p.sendline(args.pre_eval)
+    assert_prompt(args.test_timeout)
 
 fail_cnt = 0
 

@@ -9,7 +9,7 @@ def READ(str):
 
 # eval
 def EVAL(ast, env):
-        #print("EVAL %s" % ast)
+        #print("EVAL %s" % printer._pr_str(ast))
         return ast
 
 def PRINT(exp):
@@ -19,6 +19,7 @@ def PRINT(exp):
 def REP(str):
     return PRINT(EVAL(READ(str), {}))
 
+# repl loop
 while True:
     try:
         line = mal_readline.readline("user> ")
@@ -27,4 +28,4 @@ while True:
         print(REP(line))
     except reader.Blank: continue
     except Exception as e:
-        print "".join(traceback.format_exception(*sys.exc_info()))
+        print("".join(traceback.format_exception(*sys.exc_info())))
