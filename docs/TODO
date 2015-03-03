@@ -1,17 +1,49 @@
 All:
-    - multi-line read
-    - loop/recur ?
-    - hash-maps with non-string keys
-    - hash-map with space in key string (make)
-    - keyword type
-    - gensym reader inside quasiquote
+    - Finish guide.md
 
-    - per impl tests for step5_tco, step9_interop (if possible)
+    - test to check args set properly
+    - test to make sure slurp captures final newline
+    - make sure errors propagate/print properly when self-hosted
+
+    * change perf test to run for 10 seconds and then calculate number
+      of iterations per second
+    - redefine (defmacro!) as (def! (macro*))
+    - runtest expect fixes:
+        * stop using expect, so we can drop --raw option
+        * fix C#, VB
+        - fix long line splitting in runtest
     - regular expression matching in runtest
+    - add re (use in rep) everywhere and use that (to avoid printing)
+    - Implement/fix interop
     - Print full exception when test gets EOF from expect
 
+    - metadata on symbols
+    - metadata as a map only. ^ merges metadata in the reader itself.
+      Line numbers in metadata from reader.
+    - protocols!
+        - https://github.com/pixie-lang/pixie
+        - http://www.toccata.io/2015/01/Mapping/
+    - namespaces
+        - environments first class: *ENV*, *outer* defined by env-new
+        - namespaces is *namespaces* map in environment which maps namespace
+          names to other environments.
+        - def! become an alias for (env-set! *ENV* 'sym value)
+        - Namespace lookup: go up the environment hierarchy until
+          a *namespaces* map is found with the namespace name being
+          looked up. Then the symbol would be looked up starting in
+          the namespace environment. Need protocols first probably.
     - Break out impl eval into step0.5
     - Fix quasiquoting of vectors
+
+    - Get self-host working at earlier step:
+        - Move try* to step6
+        - Remove macros from mal
+
+    - multi-line REPL read
+    - loop/recur ?
+    - gensym reader inside quasiquote
+
+    - per impl tests for step5_tco
 
 ---------------------------------------------
 
@@ -21,38 +53,100 @@ Bash:
 
 C:
     - come up with better way to do 20 vararg code
-    - GC
+    - GC: use http://www.hboehm.info/gc/
+    - fix mal/clojurewest2014.mal
 
 C#:
-    - step9_interop
+    - fix command line arg processing (doesn't run file specified)
+    - accumulates line breaks with mal/clojurewest2014.mal
+    - step9_interop:
+      http://www.ckode.dk/programming/eval-in-c-yes-its-possible/
 
 Clojure:
+    - make indent consistent across steps (e.g. step5, step8)
+    - fix mal/clojurewest2014.mal
+
+CoffeeScript:
+    - make target to compile to JS
+    - fix "user> " prompt with mal/clojurewest2014.mal
+
+Go:
+    - consider variable arguments in places where it makes sense
+        https://gobyexample.com/variadic-functions
+
+Haskell:
+    - TCO using seq/bang patterns:
+      http://stackoverflow.com/questions/9149183/tail-optimization-guarantee-loop-encoding-in-haskell
+    - immediately exits mal/clojurewest2014.mal
 
 Java:
-    - step9_interop
+    - Use gradle instead of mvn
+        http://blog.paralleluniverse.co/2014/05/01/modern-java/
+    - MAL formatting is a bit off with mal/clojurewest2014.mal
 
 Javascript:
+    - interop: adopt techniques from miniMAL
+    - fix "user> " prompt with mal/clojurewest2014.mal
+
+Lua:
+    - time-ms should get actual milliseconds
 
 Make:
     - allow '_' in make variable names
+    - hash-map with space in key string
+    - Fix: make -f stepA_mal.mk ../mal/step6_file.mal
+        (slurp "../tests/incA.mal")
+        (read-string "(+ 2 3)")
     - errors should propagate up from within load-file
+    - GC: expore using "undefined" directive in Make 3.82
 
 Mal:
     - line numbers in errors
     - step5_tco
-    - step9_interop
+
+miniMAL:
+    - figure out why {} literals are "static"/persistent
 
 Perl:
+    - fix metadata on native functions
+    - implement conj
 
 PHP:
+    - formatting messed up with mal/clojurewest2014.mal
 
 Postscript:
-    - negative numbers
+    - add negative numbers
+    - fix blank line after comments
+    - fix command line arg processing (doesn't run file specified)
+    - formatting messed up with mal/clojurewest2014.mal
 
 Python:
-    - error: python ../python/stepA_more.py ../mal/stepA_more.mal ../mal/stepA_more.mal
+    - error: python ../python/stepA_mal.py ../mal/stepA_mal.mal ../mal/stepA_mal.mal
+    - interop tests
+
+R:
+    - tracebacks in errors
+    - fix running from different directory
+    - formatting messed up with mal/clojurewest2014.mal
+
+Racket
+    - metadata on collections
 
 Ruby:
+
+Rust:
+    - use built-in regex once fixed:
+        https://github.com/rust-lang/rust/issues/18034
+        https://github.com/rust-lang/rust/issues/18035
+    - fix 'make all' invocation of cargo build
+    - formatting messed up with mal/clojurewest2014.mal
+
+Scala
+    - readline
+    - fix exception when finished running something on command line
+
+VB.Net
+    - convert readline.cs to readline.vb
 
 
 ---------------------------------------------
@@ -60,73 +154,38 @@ Ruby:
 
 Future Implementations:
 
-    - Rust:
-        - http://www.rustforrubyists.com/book/index.html
-        - http://static.rust-lang.org/doc/0.9/complement-cheatsheet.html
-        - http://pzol.github.io/getting_rusty/
-        - release notes:
-            - https://github.com/mozilla/rust/wiki/Doc-detailed-release-notes
-        - this week in rust:
-            - http://cmr.github.io/
-        - readline:
-            - http://redbrain.co.uk/2013/11/09/rust-and-readline-c-ffi/
-            - http://www.reddit.com/r/rust/comments/1q9pqc/rust_cffi_and_readline/
-            - https://github.com/dbp/rustrepl
-        - hash-map:
-            - http://static.rust-lang.org/doc/master/std/hashmap/index.html
-            - http://static.rust-lang.org/doc/master/std/hashmap/struct.HashMap.html
-        - vector/list:
-            - http://static.rust-lang.org/doc/master/std/vec/index.html
-        - example code:
-            - https://github.com/dradtke/rust-dominion/blob/master/dominion/mod.rs
+    - Ada (gnat)
+        - http://rosettacode.org/wiki/Regular_expressions#Ada
 
-    - Redmonk languages from Jan 2014:
-        http://sogrady-media.redmonk.com/sogrady/files/2014/01/lang-rank-114-wm.png
-    
-        - Tier 1
-            * JavaScript
-            * Java
-            * PHP
-            * C#
-            * Python
-            - C++
-            * Ruby
-            * C
-            - Objective-C
-            * Perl 
-            * Shell (Bash 4)
+    - C++
 
-        - Tier 2
-            - Scala
-            - Haskell
-            * Clojure
-            - CoffeeScript
-            - Visual Basic
-            - Groovy
-            - Go
-            - Lua
-            - Erlang
-            - Emacs Lisp
-            - Assembly
-            - Scheme
-            - FORTRAN
-            - Dart
-            - F#
-            - D
+    - Groovy
+        - http://groovy-lang.org/learn.html
+        - http://groovy-lang.org/structure.html
 
-        - Tier 3
-            - TypeScript
-            - Racket
-            - HaXe
-            - Pascal
-            - VimL
-                - https://github.com/tpope/timl
-            - Common Lisp
-            - Rust
-            - M (OpenM/MUMPS)
-            - Factor (Stack-based)
+    - Erlang
 
-    - Others:
-        - Forth (Stack-based)
-        - BF (Crazy)
+    - F#
 
+    - Haxe
+        - http://api.haxe.org/
+        - http://haxe.us/haxe_tutorial.html
+
+    - Julia
+
+    - Nim
+
+    - Objective-C:
+
+    - Pascal:
+        sudo aptitude install fp-compiler-2.6.2
+
+    - VimL
+        - https://github.com/tpope/timl
+
+    - Tcl
+
+    - TeX/LaTeX
+        - Basic interpreter in TeX: http://ctanhg.scharrer-online.de/pkg/basix.html
+        - Cheat Sheet: http://www.stdout.org/~winston/latex/latexsheet.pd
+        - latex '\nonstopmode\input' blah.tex

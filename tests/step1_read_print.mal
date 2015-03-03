@@ -40,6 +40,8 @@ abc-def
 ;=>"abc\"def"
 ;;;"abc\ndef"
 ;;;;=>"abc\ndef"
+""
+;=>""
 
 
 ;; Testing read of lists
@@ -51,6 +53,49 @@ abc-def
 ;=>(+ 1 (+ 2 3))
   ( +   1   (+   2 3   )   )  
 ;=>(+ 1 (+ 2 3))
+(* 1 2)
+;=>(* 1 2)
+(** 1 2)
+;=>(** 1 2)
+
+;; Test commas as whitespace
+(1 2, 3,,,,),,
+;=>(1 2 3)
+
+;; Testing read of quoting
+'1
+;=>(quote 1)
+'(1 2 3)
+;=>(quote (1 2 3))
+`1
+;=>(quasiquote 1)
+`(1 2 3)
+;=>(quasiquote (1 2 3))
+~1
+;=>(unquote 1)
+~(1 2 3)
+;=>(unquote (1 2 3))
+~@(1 2 3)
+;=>(splice-unquote (1 2 3))
+
+;;
+;; Testing reader errors
+;;; TODO: fix these so they fail correctly
+(1 2
+; expected ')', got EOF
+[1 2
+; expected ']', got EOF
+"abc
+; expected '"', got EOF
+
+;;
+;; -------- Optional Functionality --------
+
+;; Testing keywords
+:kw
+;=>:kw
+(:kw1 :kw2 :kw3)
+;=>(:kw1 :kw2 :kw3)
 
 ;; Testing read of vectors
 [+ 1 2]
@@ -71,22 +116,8 @@ abc-def
 ;=>{"a" {"b" {"c" 3}}}
 {  "a"  {"b"   {  "cde"     3   }  }}
 ;=>{"a" {"b" {"cde" 3}}}
-
-;; Test commas as whitespace
-[1 2, 3,,,,],,
-;=>[1 2 3]
-
-;;
-;; Testing reader errors
-(1 2
-; expected ')', got EOF
-[1 2
-; expected ']', got EOF
-"abc
-; expected '"', got EOF
-
-;;
-;; -------- Optional Functionality --------
+{  :a  {:b   {  :cde     3   }  }}
+;=>{:a {:b {:cde 3}}}
 
 ;; Testing read of comments
  ;; whole line comment (not an exception)
@@ -94,23 +125,6 @@ abc-def
 ;=>1
 1; comment after expression
 ;=>1
-
-;; Testing read of quoting
-'1
-;=>(quote 1)
-'(1 2 3)
-;=>(quote (1 2 3))
-`1
-;=>(quasiquote 1)
-`(1 2 3)
-;=>(quasiquote (1 2 3))
-~1
-;=>(unquote 1)
-~(1 2 3)
-;=>(unquote (1 2 3))
-~@(1 2 3)
-;=>(splice-unquote (1 2 3))
-
 
 ;; Testing read of ^/metadata
 ^{"a" 1} [1 2 3]

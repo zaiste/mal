@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 source $(dirname $0)/reader.sh
 source $(dirname $0)/printer.sh
@@ -31,7 +31,7 @@ PRINT () {
 
 # repl
 REP () {
-    READ "${1}" || return 1
+    READ "${1}"
     EVAL "${r}"
     PRINT "${r}"
 }

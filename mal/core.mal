@@ -4,7 +4,10 @@
    ["nil?" nil?]
    ["true?" true?]
    ["false?" false?]
+   ["symbol" symbol]
    ["symbol?" symbol?]
+   ["keyword" keyword]
+   ["keyword?" keyword?]
 
    ["pr-str" pr-str]
    ["str" str]

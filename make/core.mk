@@ -32,24 +32,28 @@ false? = $(if $(call _false?,$(1)),$(__true),$(__false))
 
 
 # Symbol functions
+symbol = $(call _symbol,$(call str_decode,$($(1)_value)))
 symbol? = $(if $(call _symbol?,$(1)),$(__true),$(__false))
+
+# Keyword functions
+keyword = $(call _keyword,$(call str_decode,$($(1)_value)))
+keyword? = $(if $(call _keyword?,$(1)),$(__true),$(__false))
 
 
 # Number functions
 number? = $(if $(call _number?,$(1)),$(__true),$(__false))
 
-number_lt = $(if $(call int_lt,$($(word 1,$(1))_value),$($(word 2,$(1))_value)),$(__true),$(__false))
-number_lte = $(if $(call int_lte,$($(word 1,$(1))_value),$($(word 2,$(1))_value)),$(__true),$(__false))
-number_gt = $(if $(call int_gt,$($(word 1,$(1))_value),$($(word 2,$(1))_value)),$(__true),$(__false))
-number_gte = $(if $(call int_gte,$($(word 1,$(1))_value),$($(word 2,$(1))_value)),$(__true),$(__false))
+number_lt = $(if $(call int_lt_encoded,$($(word 1,$(1))_value),$($(word 2,$(1))_value)),$(__true),$(__false))
+number_lte = $(if $(call int_lte_encoded,$($(word 1,$(1))_value),$($(word 2,$(1))_value)),$(__true),$(__false))
+number_gt = $(if $(call int_gt_encoded,$($(word 1,$(1))_value),$($(word 2,$(1))_value)),$(__true),$(__false))
+number_gte = $(if $(call int_gte_encoded,$($(word 1,$(1))_value),$($(word 2,$(1))_value)),$(__true),$(__false))
 
-number_plus = $(call _pnumber,$(call int_plus,$($(word 1,$(1))_value),$($(word 2,$(1))_value)))
-number_subtract = $(call _pnumber,$(call int_subtract,$($(word 1,$(1))_value),$($(word 2,$(1))_value)))
-number_multiply = $(call _pnumber,$(call int_multiply,$($(word 1,$(1))_value),$($(word 2,$(1))_value)))
-number_divide = $(call _pnumber,$(call int_divide,$($(word 1,$(1))_value),$($(word 2,$(1))_value)))
+number_plus = $(call _pnumber,$(call int_add_encoded,$($(word 1,$(1))_value),$($(word 2,$(1))_value)))
+number_subtract = $(call _pnumber,$(call int_sub_encoded,$($(word 1,$(1))_value),$($(word 2,$(1))_value)))
+number_multiply = $(call _pnumber,$(call int_mult_encoded,$($(word 1,$(1))_value),$($(word 2,$(1))_value)))
+number_divide = $(call _pnumber,$(call int_div_encoded,$($(word 1,$(1))_value),$($(word 2,$(1))_value)))
 
-time_secs = $(call _number,$(shell echo $$(( $$(date +%s) % 65536 ))))
-
+time_ms = $(call _number,$(shell echo $$(date +%s%3N)))
 
 # String functions
 
@@ -60,12 +64,12 @@ str     = $(call _string,$(call _pr_str_mult,$(1),,))
 prn     = $(info $(call _pr_str_mult,$(1),yes, ))
 println = $(info $(subst \n,$(NEWLINE),$(call _pr_str_mult,$(1),, )))
 
-readline= $(foreach res,$(call _string,$(call READLINE,"$(call str_decode,$($(1)_value))")),$(if $(READLINE_EOF),$(__nil),$(res)))
+readline= $(foreach res,$(call _string,$(call READLINE,"$(call str_decode,$($(1)_value))")),$(if $(READLINE_EOF),$(eval READLINE_EOF :=)$(__nil),$(res)))
 read_str= $(call READ_STR,$(1))
 slurp   = $(call _string,$(call _read_file,$(call str_decode,$($(1)_value))))
 
 subs = $(strip \
-         $(foreach start,$(call gmsl_plus,1,$(call int_decode,$($(word 2,$(1))_value))),\
+         $(foreach start,$(call int_add,1,$(call int_decode,$($(word 2,$(1))_value))),\
            $(foreach end,$(if $(3),$(call int_decode,$($(3)_value)),$(words $($(word 1,$(1))_value))),\
              $(call _string,$(wordlist $(start),$(end),$($(word 1,$(1))_value))))))
 
@@ -98,10 +102,9 @@ assoc = $(word 1,\
 dissoc = $(word 1,\
            $(foreach hm,$(call _clone_obj,$(word 1,$(1))),\
              $(hm) \
-             $(foreach key,$(wordlist 2,$(words $(1)),$(1)),\
-               $(call _dissoc!,$(hm),$(call str_decode,$($(key)_value))))))
+             $(call _dissoc_seq!,$(hm),$(wordlist 2,$(words $(1)),$(1)))))
 
-keys = $(foreach new_list,$(call _list),$(new_list)$(eval $(new_list)_value := $(foreach v,$(call __get_obj_values,$(1)),$(call _string,$(word 4,$(subst _, ,$(v)))))))
+keys = $(foreach new_list,$(call _list),$(new_list)$(eval $(new_list)_value := $(foreach v,$(call __get_obj_values,$(1)),$(foreach vval,$(word 4,$(subst _, ,$(v))),$(if $(filter $(__keyword)%,$(vval)),$(call _keyword,$(patsubst $(__keyword)%,%,$(vval))),$(call _string,$(vval)))))))
 
 vals = $(foreach new_list,$(call _list),$(new_list)$(eval $(new_list)_value := $(foreach v,$(call __get_obj_values,$(1)),$($(v)))))
 
@@ -127,7 +130,10 @@ cons = $(word 1,$(foreach new_list,$(call _list),$(new_list) $(eval $(new_list)_
 
 concat = $(word 1,$(foreach new_list,$(call _list),$(new_list) $(eval $(new_list)_value := $(strip $(foreach lst,$1,$(call __get_obj_values,$(lst)))))))
 
-nth = $(word $(call gmsl_plus,1,$(call int_decode,$($(word 2,$(1))_value))),$($(word 1,$(1))_value))
+nth = $(strip \
+        $(if $(call int_lt,$($(word 2,$(1))_value),$(call int_encode,$(call _count,$(word 1,$(1))))),\
+          $(word $(call int_add,1,$(call int_decode,$($(word 2,$(1))_value))),$($(word 1,$(1))_value)),\
+          $(call _error,nth: index out of range)))
 
 sfirst = $(word 1,$($(1)_value))
 
@@ -155,7 +161,7 @@ srest = $(word 1,$(foreach new_list,$(call _list),\
 # (function object) using the remaining arguments.
 sapply = $(call $(word 1,$(1))_value,\
                 $(strip \
-                  $(wordlist 2,$(call gmsl_subtract,$(words $(1)),1),$(1)) \
+                  $(wordlist 2,$(call int_sub,$(words $(1)),1),$(1)) \
                   $($(word $(words $(1)),$(1))_value)))
 
 # Map a function object over a list object
@@ -209,8 +215,10 @@ core_ns = type obj_type \
           nil? nil? \
           true? true? \
           false? false? \
-          symbol _symbol \
+          symbol symbol \
           symbol? symbol? \
+          keyword keyword \
+          keyword? keyword? \
           function? function? \
           string? string? \
           \
@@ -231,7 +239,7 @@ core_ns = type obj_type \
           - number_subtract \
           * number_multiply \
           / number_divide \
-          time-secs time_secs \
+          time-ms time_ms \
           \
           list _list \
           list? list? \

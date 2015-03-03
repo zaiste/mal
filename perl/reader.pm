@@ -2,10 +2,11 @@ package reader;
 use feature qw(switch);
 use strict;
 use warnings FATAL => qw(all);
+no if $] >= 5.018, warnings => "experimental::smartmatch";
 use Exporter 'import';
 our @EXPORT_OK = qw( read_str );
 
-use types qw($nil $true $false _hash_map);
+use types qw($nil $true $false _keyword _hash_map);
 
 use Data::Dumper;
 
@@ -36,6 +37,7 @@ sub read_atom {
             $str =~ s/\\n/\n/g;
             return String->new($str)
         }
+        when(/^:/) { return _keyword(substr($token,1)) }
         when(/^nil$/) { return $nil }
         when(/^true$/) { return $true }
         when(/^false$/) { return $false }

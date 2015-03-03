@@ -1,3 +1,9 @@
+;;; TODO: really a step5 test
+;;
+;; Testing that (do (do)) not broken by TCO
+(do (do 1 2))
+;=>2
+
 ;; Testing read-string, eval and slurp
 
 (read-string "(+ 2 3)")
@@ -22,8 +28,16 @@
 ;=>12
 
 ;;
+;; Testing that *ARGV* exists and is an empty list
+(list? *ARGV*)
+;=>true
+*ARGV*
+;=>()
+
+;;
 ;; -------- Optional Functionality --------
 
+;; Testing comments in a file
 (load-file "../tests/incB.mal")
 ; "incB.mal finished"
 ;=>"incB.mal return string"
@@ -31,3 +45,18 @@
 ;=>11
 (inc5 7)
 ;=>12
+
+;; Testing map literal across multiple lines in a file
+(load-file "../tests/incC.mal")
+mymap
+;=>{"a" 1}
+
+;;; TODO: really a step5 test
+;; Testing that vector params not broken by TCO
+(def! g (fn* [] 78))
+(g)
+;=>78
+(def! g (fn* [a] (+ a 78)))
+(g 3)
+;=>81
+

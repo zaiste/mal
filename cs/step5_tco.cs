@@ -5,11 +5,11 @@ using System.Collections.Generic;
 using Mal;
 using MalVal = Mal.types.MalVal;
 using MalSymbol = Mal.types.MalSymbol;
-using MalInteger = Mal.types.MalInteger;
+using MalInt = Mal.types.MalInt;
 using MalList = Mal.types.MalList;
 using MalVector = Mal.types.MalVector;
 using MalHashMap = Mal.types.MalHashMap;
-using MalFunction = Mal.types.MalFunction;
+using MalFunc = Mal.types.MalFunc;
 using Env = Mal.env.Env;
 
 namespace Mal {
@@ -22,8 +22,7 @@ namespace Mal {
         // eval
         static MalVal eval_ast(MalVal ast, Env env) {
             if (ast is MalSymbol) {
-                MalSymbol sym = (MalSymbol)ast;
-                return env.get(sym.getName());
+                return env.get((MalSymbol)ast);
             } else if (ast is MalList) {
                 MalList old_lst = (MalList)ast;
                 MalList new_lst = ast.list_Q() ? new MalList()
@@ -50,7 +49,7 @@ namespace Mal {
 
             while (true) {
 
-            //System.out.println("EVAL: " + printer._pr_str(orig_ast, true));
+            //Console.WriteLine("EVAL: " + printer._pr_str(orig_ast, true));
             if (!orig_ast.list_Q()) {
                 return eval_ast(orig_ast, env);
             }
@@ -68,7 +67,7 @@ namespace Mal {
                 a1 = ast[1];
                 a2 = ast[2];
                 res = EVAL(a2, env);
-                env.set(((MalSymbol)a1).getName(), res);
+                env.set((MalSymbol)a1, res);
                 return res;
             case "let*":
                 a1 = ast[1];
@@ -79,7 +78,7 @@ namespace Mal {
                 for(int i=0; i<((MalList)a1).size(); i+=2) {
                     key = (MalSymbol)((MalList)a1)[i];
                     val = ((MalList)a1)[i+1];
-                    let_env.set(key.getName(), EVAL(val, let_env));
+                    let_env.set(key, EVAL(val, let_env));
                 }
                 orig_ast = a2;
                 env = let_env;
@@ -107,11 +106,11 @@ namespace Mal {
                 MalList a1f = (MalList)ast[1];
                 MalVal a2f = ast[2];
                 Env cur_env = env;
-                return new MalFunction(a2f, env, a1f,
+                return new MalFunc(a2f, env, a1f,
                     args => EVAL(a2f, new Env(cur_env, a1f, args)) );
             default:
                 el = (MalList)eval_ast(ast, env);
-                var f = (MalFunction)el[0];
+                var f = (MalFunc)el[0];
                 MalVal fnast = f.getAst();
                 if (fnast != null) {
                     orig_ast = fnast;
@@ -131,38 +130,35 @@ namespace Mal {
         }
 
         // repl
-        static MalVal RE(Env env, string str) {
-            return EVAL(READ(str), env);
-        }
-
         static void Main(string[] args) {
-            string prompt = "user> ";
+            var repl_env = new Mal.env.Env(null);
+            Func<string, MalVal> RE = (string str) => EVAL(READ(str), repl_env);
             
             // core.cs: defined using C#
-            var repl_env = new env.Env(null);
             foreach (var entry in core.ns) {
-                repl_env.set(entry.Key, entry.Value);
+                repl_env.set(new MalSymbol(entry.Key), entry.Value);
             }
 
             // core.mal: defined using the language itself
-            RE(repl_env, "(def! not (fn* (a) (if a false true)))");
+            RE("(def! not (fn* (a) (if a false true)))");
 
             if (args.Length > 0 && args[0] == "--raw") {
                 Mal.readline.mode = Mal.readline.Mode.Raw;
             }
-            
+
             // repl loop
             while (true) {
                 string line;
                 try {
-                    line = Mal.readline.Readline(prompt);
+                    line = Mal.readline.Readline("user> ");
                     if (line == null) { break; }
+                    if (line == "") { continue; }
                 } catch (IOException e) {
                     Console.WriteLine("IOException: " + e.Message);
                     break;
                 }
                 try {
-                    Console.WriteLine(PRINT(RE(repl_env, line)));
+                    Console.WriteLine(PRINT(RE(line)));
                 } catch (Mal.types.MalContinue) {
                     continue;
                 } catch (Exception e) {

@@ -1,12 +1,12 @@
 SOURCES_BASE = types.sh reader.sh printer.sh
-SOURCES_LISP = env.sh core.sh stepA_more.sh
+SOURCES_LISP = env.sh core.sh stepA_mal.sh
 SOURCES = $(SOURCES_BASE) $(SOURCES_LISP)
 
 all: mal.sh
 
 mal.sh: $(SOURCES)
 	cat $+ > $@
-	echo "#!/bin/bash" > $@
+	echo "#!/usr/bin/env bash" > $@
 	cat $+ | grep -v "^source " >> $@
 	chmod +x $@
 

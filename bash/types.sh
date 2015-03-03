@@ -8,6 +8,7 @@ __mal_types_included=true
 declare -A ANON
 
 __obj_magic=__5bal7
+__keyw=$(echo -en "\u029e")
 __obj_hash_code=${__obj_hash_code:-0}
 
 __new_obj_hash_code () {
@@ -50,7 +51,9 @@ _obj_type () {
         list) r="list" ;;
         numb) r="number" ;;
         func) r="function" ;;
-        strn) r="string" ;;
+        strn)
+            local s="${ANON["${1}"]}"
+            [[ "${s:0:1}" = "${__keyw}" ]] && r="keyword" || r="string" ;;
         _nil) r="nil" ;;
         true) r="true" ;;
         fals) r="false" ;;
@@ -71,7 +74,7 @@ _equal? () {
         fi
     fi
     case "${ot1}" in
-    string|symbol|number)
+    string|symbol|keyword|number)
         [[ "${ANON["${1}"]}" == "${ANON["${2}"]}" ]] ;;
     list|vector|hash_map)
         _count "${1}"; local sz1="${r}"
@@ -104,9 +107,25 @@ _false? () { [[ ${1} =~ ^fals_ ]]; }
 _symbol () {
     __new_obj_hash_code
     r="symb_${r}"
-    ANON["${r}"]="${1//$'\*'/__STAR__}"
+    ANON["${r}"]="${1//\*/__STAR__}"
 }
 _symbol? () { [[ ${1} =~ ^symb_ ]]; }
+
+
+# Keywords
+
+_keyword () {
+    local k="${1}"
+    __new_obj_hash_code
+    r="strn_${r}"
+    [[ "${1:1:1}" = "${__keyw}" ]] || k="${__keyw}${1}"
+    ANON["${r}"]="${k//\*/__STAR__}"
+}
+_keyword? () {
+    [[ ${1} =~ ^strn_ ]] || return 1
+    local s="${ANON["${1}"]}"
+    [[ "${s:0:1}" = "${__keyw}" ]]
+}
 
 
 # Numbers
@@ -124,7 +143,7 @@ _number? () { [[ ${1} =~ ^numb_ ]]; }
 _string () {
     __new_obj_hash_code
     r="strn_${r}"
-    ANON["${r}"]="${1//$'\*'/__STAR__}"
+    ANON["${r}"]="${1//\*/__STAR__}"
 }
 _string? () { [[ ${1} =~ ^strn_ ]]; }
 
@@ -173,7 +192,7 @@ _hash_map () {
     __new_obj_hash_code
     local name="hmap_${r}"
     local obj="${__obj_magic}_${name}"
-    declare -A -g ${obj}
+    declare -A -g ${obj}; eval "${obj}=()"
     ANON["${name}"]="${obj}"
 
     while [[ "${1}" ]]; do
@@ -245,7 +264,7 @@ _sequential? () {
 
 _nth () {
     local temp=(${ANON["${1}"]})
-    r=${temp[${2}]}
+    r="${temp[${2}]}"
 }
 
 _first () {
@@ -285,8 +304,12 @@ _conj! () {
 
 
 _count () {
-    local temp=(${ANON["${1}"]})
-    r=${#temp[*]}
+    if _nil? "${1}"; then
+        r="0"
+    else
+        local temp=(${ANON["${1}"]})
+        r=${#temp[*]}
+    fi
 }
 
 # Slice a sequence object $1 starting at $2 of length $3

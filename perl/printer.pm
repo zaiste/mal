@@ -1,6 +1,7 @@
 package printer;
 use strict;
 use warnings FATAL => qw(all);
+no if $] >= 5.018, warnings => "experimental::smartmatch";
 use feature qw(switch);
 use Exporter 'import';
 our @EXPORT_OK = qw( _pr_str );
@@ -29,7 +30,9 @@ sub _pr_str {
             return '{' . join(' ', @elems) . '}';
         }
         when(/^String/) {
-            if ($_r) {
+            if ($$obj =~ /^\x{029e}/) {
+                return ':' . substr($$obj,1);
+            } elsif ($_r) {
                 my $str = $$obj;
                 $str =~ s/\\/\\\\/g;
                 $str =~ s/"/\\"/g;

@@ -27,7 +27,7 @@ if (typeof module === 'undefined') {
     var exports = types;
 }
 
-// General fucnctions
+// General functions
 
 function _obj_type(obj) {
     if      (_symbol_Q(obj)) {   return 'symbol'; }
@@ -42,7 +42,7 @@ function _obj_type(obj) {
         switch (typeof(obj)) {
         case 'number':   return 'number';
         case 'function': return 'function';
-        case 'string':   return 'string';
+        case 'string': return obj[0] == '\u029e' ? 'keyword' : 'string';
         default: throw new Error("Unknown type '" + typeof(obj) + "'");
         }
     }
@@ -102,6 +102,10 @@ function _clone (obj) {
     default:
         throw new Error("clone of non-collection: " + _obj_type(obj));
     }
+    Object.defineProperty(new_obj, "__meta__", {
+        enumerable: false,
+        writable: true
+    });
     return new_obj;
 }
 
@@ -120,6 +124,13 @@ function Symbol(name) {
 Symbol.prototype.toString = function() { return this.value; }
 function _symbol(name) { return new Symbol(name); }
 function _symbol_Q(obj) { return obj instanceof Symbol; }
+
+
+// Keywords
+function _keyword(name) { return "\u029e" + name; }
+function _keyword_Q(obj) {
+    return typeof obj === 'string' && obj[0] === '\u029e';
+}
 
 
 // Functions
@@ -171,6 +182,7 @@ function _hash_map_Q(hm) {
     return typeof hm === "object" &&
            !Array.isArray(hm) &&
            !(hm === null) &&
+           !(hm instanceof Symbol) &&
            !(hm instanceof Atom);
 }
 function _assoc_BANG(hm) {
@@ -180,10 +192,6 @@ function _assoc_BANG(hm) {
     for (var i=1; i<arguments.length; i+=2) {
         var ktoken = arguments[i],
             vtoken = arguments[i+1];
-        // TODO: support more than string keys
-        //if (list_Q(ktoken) && hash_map_Q(ktoken)) {
-        //    throw new Error("expected hash-map key atom, got collection");
-        //}
         if (typeof ktoken !== "string") {
             throw new Error("expected hash-map key string, got: " + (typeof ktoken));
         }
@@ -216,6 +224,8 @@ exports._true_Q = types._true_Q = _true_Q;
 exports._false_Q = types._false_Q = _false_Q;
 exports._symbol = types._symbol = _symbol;
 exports._symbol_Q = types._symbol_Q = _symbol_Q;
+exports._keyword = types._keyword = _keyword;
+exports._keyword_Q = types._keyword_Q = _keyword_Q;
 exports._function = types._function = _function;
 exports._function_Q = types._function_Q = _function_Q;
 exports._list = types._list = _list;
@@ -264,6 +274,8 @@ function read_atom (reader) {
         return token.slice(1,token.length-1) 
             .replace(/\\"/g, '"')
             .replace(/\\n/g, "\n"); // string
+    } else if (token[0] === ":") {
+        return types._keyword(token.slice(1));
     } else if (token === "nil") {
         return null;
     } else if (token === "true") {
@@ -383,13 +395,17 @@ function _pr_str(obj, print_readably) {
         }
         return "{" + ret.join(' ') + "}";
     case 'string':
-        if (_r) {
-            return '"' + obj.replace(/\\/, "\\\\")
+        if (obj[0] === '\u029e') {
+            return ':' + obj.slice(1);
+        } else if (_r) {
+            return '"' + obj.replace(/\\/g, "\\\\")
                 .replace(/"/g, '\\"')
                 .replace(/\n/g, "\\n") + '"'; // string
         } else {
             return obj;
         }
+    case 'keyword':
+        return ':' + obj.slice(1);
     case 'nil':
         return "nil";
     case 'atom':
@@ -429,15 +445,27 @@ function Env(outer, binds, exprs) {
     return this;
 }
 Env.prototype.find = function (key) {
-    if (key in this.data) { return this; }
+    if (!key.constructor || key.constructor.name !== 'Symbol') {
+        throw new Error("env.find key must be a symbol")
+    }
+    if (key.value in this.data) { return this; }
     else if (this.outer) {  return this.outer.find(key); }
     else { return null; }
 };
-Env.prototype.set = function(key, value) { this.data[key] = value; return value; },
+Env.prototype.set = function(key, value) {
+    if (!key.constructor || key.constructor.name !== 'Symbol') {
+        throw new Error("env.set key must be a symbol")
+    }
+    this.data[key.value] = value;
+    return value;
+};
 Env.prototype.get = function(key) {
+    if (!key.constructor || key.constructor.name !== 'Symbol') {
+        throw new Error("env.get key must be a symbol")
+    }
     var env = this.find(key);
-    if (!env) { throw new Error("'" + key + "' not found"); }
-    return env.data[key];
+    if (!env) { throw new Error("'" + key.value + "' not found"); }
+    return env.data[key.value];
 };
 
 exports.Env = env.Env = Env;
@@ -534,7 +562,10 @@ function concat(lst) {
     return lst.concat.apply(lst, Array.prototype.slice.call(arguments, 1));
 }
 
-function nth(lst, idx) { return lst[idx]; }
+function nth(lst, idx) {
+    if (idx < lst.length) { return lst[idx]; }
+    else                  { throw new Error("nth: index out of range"); }
+}
 
 function first(lst) { return lst[0]; }
 
@@ -544,7 +575,8 @@ function empty_Q(lst) { return lst.length === 0; }
 
 function count(s) {
     if (Array.isArray(s)) { return s.length; }
-    else {                  return Object.keys(s).length; }
+    else if (s === null)  { return 0; }
+    else                  { return Object.keys(s).length; }
 }
 
 function conj(lst) {
@@ -604,6 +636,8 @@ var ns = {'type': types._obj_type,
           'false?': types._false_Q,
           'symbol': types._symbol,
           'symbol?': types._symbol_Q,
+          'keyword': types._keyword,
+          'keyword?': types._keyword_Q,
 
           'pr-str': pr_str,
           'str': str,
@@ -688,8 +722,8 @@ function quasiquote(ast) {
 function is_macro_call(ast, env) {
     return types._list_Q(ast) &&
            types._symbol_Q(ast[0]) &&
-           env.find(ast[0].value) &&
-           env.get(ast[0].value)._ismacro_;
+           env.find(ast[0]) &&
+           env.get(ast[0])._ismacro_;
 }
 
 function macroexpand(ast, env) {
@@ -740,7 +774,7 @@ function _EVAL(ast, env) {
     case "let*":
         var let_env = new Env(env);
         for (var i=0; i < a1.length; i+=2) {
-            let_env.set(a1[i].value, EVAL(a1[i+1], let_env));
+            let_env.set(a1[i], EVAL(a1[i+1], let_env));
         }
         ast = a2;
         env = let_env;
@@ -760,8 +794,11 @@ function _EVAL(ast, env) {
         return eval(a1.toString());
     case ".":
         var el = eval_ast(ast.slice(2), env),
-            f = eval(a1.toString());
-        return f.apply(f, el);
+            r = interop.resolve_js(a1.toString()),
+            obj = r[0], f = r[1];
+        var res = f.apply(obj, el);
+        console.log("DEBUG3:", res);
+        return interop.js_to_mal(res);
     case "try*":
         try {
             return EVAL(a1, env);
@@ -815,9 +852,10 @@ var repl_env = new Env();
 var rep = function(str) { return PRINT(EVAL(READ(str), repl_env)); };
 
 // core.js: defined using javascript
-for (var n in core.ns) { repl_env.set(n, core.ns[n]); }
-repl_env.set('eval', function(ast) { return EVAL(ast, repl_env); });
-repl_env.set('*ARGV*', []);
+for (var n in core.ns) { repl_env.set(types._symbol(n), core.ns[n]); }
+repl_env.set(types._symbol('eval'), function(ast) {
+    return EVAL(ast, repl_env); });
+repl_env.set(types._symbol('*ARGV*'), []);
 
 // core.mal: defined using the language itself
 rep("(def! *host-language* \"javascript\")")
@@ -827,7 +865,7 @@ rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (
 rep("(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))");
 
 if (typeof process !== 'undefined' && process.argv.length > 2) {
-    repl_env.set('*ARGV*', process.argv.slice(3));
+    repl_env.set(types._symbol('*ARGV*'), process.argv.slice(3));
     rep('(load-file "' + process.argv[2] + '")');
     process.exit(0);
 }

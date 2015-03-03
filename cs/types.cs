@@ -39,9 +39,9 @@ namespace Mal {
                 (a is MalList && b is MalList))) {
                 return false;
             } else {
-                if (a is MalInteger) {
-                    return ((MalInteger)a).getValue() ==
-                        ((MalInteger)b).getValue();
+                if (a is MalInt) {
+                    return ((MalInt)a).getValue() ==
+                        ((MalInt)b).getValue();
                 } else if (a is MalSymbol) {
                     return ((MalSymbol)a).getName() ==
                         ((MalSymbol)b).getName();
@@ -97,47 +97,48 @@ namespace Mal {
         static public MalConstant True = new MalConstant("true");
         static public MalConstant False = new MalConstant("false");
 
-        public class MalInteger : MalVal {
-            int value;
-            public MalInteger(int v) { value = v; }
-            public new MalInteger copy() { return this; }
+        public class MalInt : MalVal {
+            Int64 value;
+            public MalInt(Int64 v) { value = v; }
+            public new MalInt copy() { return this; }
 
-            public int getValue() { return value; }
+            public Int64 getValue() { return value; }
             public override string ToString() {
                 return value.ToString();
             }
             public override string ToString(bool print_readably) {
                 return value.ToString();
             }
-            public static MalConstant operator <(MalInteger a, MalInteger b) {
+            public static MalConstant operator <(MalInt a, MalInt b) {
                 return a.getValue() < b.getValue() ? True : False;
             }
-            public static MalConstant operator <=(MalInteger a, MalInteger b) {
+            public static MalConstant operator <=(MalInt a, MalInt b) {
                 return a.getValue() <= b.getValue() ? True : False;
             }
-            public static MalConstant operator >(MalInteger a, MalInteger b) {
+            public static MalConstant operator >(MalInt a, MalInt b) {
                 return a.getValue() > b.getValue() ? True : False;
             }
-            public static MalConstant operator >=(MalInteger a, MalInteger b) {
+            public static MalConstant operator >=(MalInt a, MalInt b) {
                 return a.getValue() >= b.getValue() ? True : False;
             }
-            public static MalInteger operator +(MalInteger a, MalInteger b) {
-                return new MalInteger(a.getValue() + b.getValue());
+            public static MalInt operator +(MalInt a, MalInt b) {
+                return new MalInt(a.getValue() + b.getValue());
             }
-            public static MalInteger operator -(MalInteger a, MalInteger b) {
-                return new MalInteger(a.getValue() - b.getValue());
+            public static MalInt operator -(MalInt a, MalInt b) {
+                return new MalInt(a.getValue() - b.getValue());
             }
-            public static MalInteger operator *(MalInteger a, MalInteger b) {
-                return new MalInteger(a.getValue() * b.getValue());
+            public static MalInt operator *(MalInt a, MalInt b) {
+                return new MalInt(a.getValue() * b.getValue());
             }
-            public static MalInteger operator /(MalInteger a, MalInteger b) {
-                return new MalInteger(a.getValue() / b.getValue());
+            public static MalInt operator /(MalInt a, MalInt b) {
+                return new MalInt(a.getValue() / b.getValue());
             }
         }
 
         public class MalSymbol : MalVal {
             string value;
             public MalSymbol(string v) { value = v; }
+            public MalSymbol(MalString v) { value = v.getValue(); }
             public new MalSymbol copy() { return this; }
 
             public string getName() { return value; }
@@ -159,7 +160,9 @@ namespace Mal {
                 return "\"" + value + "\"";
             }
             public override string ToString(bool print_readably) {
-                if (print_readably) {
+                if (value.Length > 0 && value[0] == '\u029e') {
+                    return ":" + value.Substring(1);
+                } else if (print_readably) {
                     return "\"" + value.Replace("\\", "\\\\")
                         .Replace("\"", "\\\"")
                         .Replace("\n", "\\n") + "\"";
@@ -204,10 +207,10 @@ namespace Mal {
 
             public int size() { return value.Count; }
             public MalVal nth(int idx) {
-                return value.Count > 0 ? value[idx] : Nil;
+                return value.Count > idx ? value[idx] : Nil;
             }
             public MalVal this[int idx] {
-                get { return value.Count > 0 ? value[idx] : Nil; }
+                get { return value.Count > idx ? value[idx] : Nil; }
             }
             public MalList rest() {
                 if (size() > 0) {
@@ -298,16 +301,16 @@ namespace Mal {
             }
         }
 
-        public class MalFunction : MalVal {
+        public class MalFunc : MalVal {
             Func<MalList, MalVal> fn = null;
             MalVal ast = null;
             Mal.env.Env env = null;
             MalList fparams;
             bool macro = false;
-            public MalFunction(Func<MalList, MalVal> fn) {
+            public MalFunc(Func<MalList, MalVal> fn) {
                 this.fn = fn;
             }
-            public MalFunction(MalVal ast, Mal.env.Env env, MalList fparams,
+            public MalFunc(MalVal ast, Mal.env.Env env, MalList fparams,
                                Func<MalList, MalVal> fn) {
                 this.fn = fn;
                 this.ast = ast;

@@ -1,26 +1,14 @@
-;; Testing cons function
-(cons 1 (list))
-;=>(1)
-(cons 1 (list 2))
-;=>(1 2)
-(cons 1 (list 2 3))
-;=>(1 2 3)
-(cons (list 1) (list 2 3))
-;=>((1) 2 3)
+;; Testing nth, first and rest functions
 
-;; Testing concat function
-(concat)
-;=>()
-(concat (list 1 2))
-;=>(1 2)
-(concat (list 1 2) (list 3 4))
-;=>(1 2 3 4)
-(concat (list 1 2) (list 3 4) (list 5 6))
-;=>(1 2 3 4 5 6)
-(concat (concat))
-;=>()
+(nth '(1) 0)
+;=>1
+(nth '(1 2) 1)
+;=>2
+(def! x "x")
+(def! x (nth '(1 2) 2))
+x
+;=>"x"
 
-;; Testing first function
 (first '())
 ;=>nil
 (first '(6))
@@ -28,7 +16,6 @@
 (first '(7 8 9))
 ;=>7
 
-;; Testing rest function
 (rest '())
 ;=>()
 (rest '(6))
@@ -36,6 +23,13 @@
 (rest '(7 8 9))
 ;=>(8 9)
 
+
+;; Testing non-macro function
+(not (= 1 1))
+;=>false
+;;; This should fail if it is a macro
+(not (= 1 2))
+;=>true
 
 
 ;; Testing trivial macros
@@ -57,6 +51,39 @@
 ;=>7
 (unless2 true 7 8)
 ;=>8
+
+;; Testing or macro
+(or)
+;=>nil
+(or 1)
+;=>1
+(or 1 2 3 4)
+;=>1
+(or false 2)
+;=>2
+(or false nil 3)
+;=>3
+(or false nil false false nil 4)
+;=>4
+(or false nil 3 false nil 4)
+;=>3
+
+;; Testing cond macro
+
+(cond)
+;=>nil
+(cond true 7)
+;=>7
+(cond true 7 true 8)
+;=>7
+(cond false 7 true 8)
+;=>8
+(cond false 7 false 8 "else" 9)
+;=>9
+(cond false 7 (= 2 2) 8 "else" 9)
+;=>8
+(cond false 7 false 8 false 9)
+;=>nil
 
 ;; Testing macroexpand
 (macroexpand (unless2 2 3 4))
@@ -82,22 +109,6 @@
 (and 1 2 3 4 false 5)
 ;=>false
 
-;; Testing or macro
-(or)
-;=>nil
-(or 1)
-;=>1
-(or 1 2 3 4)
-;=>1
-(or false 2)
-;=>2
-(or false nil 3)
-;=>3
-(or false nil false false nil 4)
-;=>4
-(or false nil 3 false nil 4)
-;=>3
-
 ;; Testing -> macro
 
 (-> 7)
@@ -111,23 +122,6 @@
 (-> (list 7 8 9) rest (rest) first (+ 7))
 ;=>16
 
-;; Testing cond macro
-
-(cond)
-;=>nil
-(cond true 7)
-;=>7
-(cond true 7 true 8)
-;=>7
-(cond false 7 true 8)
-;=>8
-(cond false 7 false 8 "else" 9)
-;=>9
-(cond false 7 (= 2 2) 8 "else" 9)
-;=>8
-(cond false 7 false 8 false 9)
-;=>nil
-
 ;; Testing EVAL in let*
 
 (let* (x (or nil "yes")) x)
@@ -136,14 +130,17 @@
 ;;
 ;; -------- Optional Functionality --------
 
-;; Testing cons, concat, first, rest with vectors
+;; Testing nth, first, rest with vectors
 
-(cons [1] [2 3])
-;=>([1] 2 3)
-(cons 1 [2 3])
-;=>(1 2 3)
-(concat [1 2] (list 3 4) [5 6])
-;=>(1 2 3 4 5 6)
+(nth [1] 0)
+;=>1
+(nth [1 2] 1)
+;=>2
+(def! x "x")
+(def! x (nth [1 2] 2))
+x
+;=>"x"
+
 (first [])
 ;=>nil
 (first [10])

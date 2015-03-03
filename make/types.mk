@@ -6,7 +6,9 @@ ifndef __mal_types_included
 __mal_types_included := true
 
 _TOP_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
+include $(_TOP_DIR)gmsl.mk
 include $(_TOP_DIR)util.mk
+include $(_TOP_DIR)numbers.mk
 
 
 # Low-level type implemenation
@@ -15,9 +17,10 @@ include $(_TOP_DIR)util.mk
 __obj_magic = ⍄⁊
 # \u2256
 __equal = ≛
+__keyword = ʞ
 __obj_hash_code = 0
 
-__new_obj_hash_code = $(eval __obj_hash_code := $(call gmsl_plus,1,$(__obj_hash_code)))$(__obj_hash_code)
+__new_obj_hash_code = $(eval __obj_hash_code := $(call int_add,1,$(__obj_hash_code)))$(__obj_hash_code)
 
 __new_obj = $(__obj_magic)_$(1)_$(call __new_obj_hash_code)
 
@@ -36,12 +39,12 @@ __var_print = $(foreach v,$(1),\
                 $(foreach var,$(call __var_name,$(v)),\
                   $(if $(or $(call _list?,$(v)),$(call _vector?,$(v))),\
                     $(info $(2)$(var):)\
-                    $(eval __var_idx := $(call gmsl_plus,1,$(__var_idx)))\
+                    $(eval __var_idx := $(call int_add,1,$(__var_idx)))\
                     $(foreach lidx,__lidx_$(__var_idx),\
                       $(eval $(lidx) := 0)\
                       $(foreach val,$($(v)_value),\
                         $(call __var_print,$(val),$(2)$(SPACE)$(SPACE)$($(lidx)): )\
-                        $(eval $(lidx) := $(call gmsl_plus,1,$($(lidx)))))),\
+                        $(eval $(lidx) := $(call int_add,1,$($(lidx)))))),\
                   $(if $(call _hash_map?,$(v)),\
                     $(info $(2)$(var):)\
                     $(foreach vkey,$(filter $(v)_%,$(.VARIABLES)),\
@@ -49,6 +52,8 @@ __var_print = $(foreach v,$(1),\
                         $(info $(2)$(SPACE)$(SPACE)$(subst $(__equal),=,$(key)): )\
                         $(call __var_print,$($(vkey)),$(2)$(SPACE)$(SPACE)$(SPACE)$(SPACE)))),\
                   $(if $(call _symbol?,$(v)),\
+                    $(info $(2)$(var): $($(v)_value)),\
+                  $(if $(call _keyword?,$(v)),\
                     $(info $(2)$(var): $($(v)_value)),\
                   $(if $(call _number?,$(v)),\
                     $(info $(2)$(var): $(call int_decode,$($(v)_value))),\
@@ -58,7 +63,7 @@ __var_print = $(foreach v,$(1),\
                     $(if $(word 6,$(value $(v)_value)),\
                       $(info $(2)$(var): $(wordlist 1,5,$(value $(v)_value))...),\
                       $(info $(2)$(var): $(value $(v)_value))),\
-                  $(info $(2)$(var): ...)))))))))
+                  $(info $(2)$(var): ...))))))))))
 
 _visualize_memory = $(foreach var,$(sort $(foreach vv,$(filter $(__obj_magic)_%,$(.VARIABLES)),$(call __var_name,$(vv)))),$(call __var_print,$(__obj_magic)_$(var)))
 
@@ -83,7 +88,8 @@ _obj_type = $(strip \
               $(if $(filter $(__obj_magic)_list_%,$(1)),list,\
               $(if $(filter $(__obj_magic)_numb_%,$(1)),number,\
               $(if $(filter $(__obj_magic)_func_%,$(1)),function,\
-              $(if $(filter $(__obj_magic)_strn_%,$(1)),string,\
+              $(if $(filter $(__obj_magic)_strn_%,$(1)),\
+                $(if $(filter $(__keyword)%,$($(1)_value)),keyword,string),\
               $(if $(filter $(__obj_magic)__nil_%,$(1)),nil,\
               $(if $(filter $(__obj_magic)_true_%,$(1)),true,\
               $(if $(filter $(__obj_magic)_fals_%,$(1)),false,\
@@ -109,7 +115,7 @@ _equal? = $(strip \
             $(foreach ot1,$(call _obj_type,$(1)),$(foreach ot2,$(call _obj_type,$(2)),\
               $(if $(or $(call _EQ,$(ot1),$(ot2)),\
                         $(and $(call _sequential?,$(1)),$(call _sequential?,$(2)))),\
-                $(if $(or $(call _string?,$(1)),$(call _symbol?,$(1)),$(call _number?,$(1))),\
+                $(if $(or $(call _string?,$(1)),$(call _symbol?,$(1)),$(call _keyword?,$(1)),$(call _number?,$(1))),\
                   $(call _EQ,$($(1)_value),$($(2)_value)),\
                 $(if $(or $(call _vector?,$(1)),$(call _list?,$(1)),$(call _hash_map?,$(1))),\
                   $(if $(and $(call _EQ,$(call _count,$(1)),$(call _count,$(2))),\
@@ -128,6 +134,11 @@ _false? = $(if $(filter $(__obj_magic)_fals_%,$(1)),$(__true),)
 # Symbols
 _symbol = $(foreach hcode,$(call __new_obj_hash_code),$(__obj_magic)_symb_$(hcode)$(eval $(__obj_magic)_symb_$(hcode)_value := $(1)))
 _symbol? = $(if $(filter $(__obj_magic)_symb_%,$(1)),$(__true),)
+
+
+# Keywords
+_keyword = $(foreach hcode,$(call __new_obj_hash_code),$(__obj_magic)_strn_$(hcode)$(eval $(__obj_magic)_strn_$(hcode)_value := $(__keyword)$(1)))
+_keyword? = $(if $(filter $(__obj_magic)_strn_%,$(1)),$(if $(filter $(__keyword)%,$($(1)_value)),$(__true),))
 
 
 # Numbers
@@ -176,11 +187,14 @@ _hash_map? = $(if $(filter $(__obj_magic)_hmap_%,$(1)),$(__true),)
 # Set multiple key/values in a map
 _assoc_seq! = $(call _assoc!,$(1),$(call str_decode,$($(word 1,$(2))_value)),$(word 2,$(2)))$(if $(word 3,$(2)),$(call _assoc_seq!,$(1),$(wordlist 3,$(words $(2)),$(2))),)
 
+_dissoc_seq! = $(foreach key,$(2),\
+                   $(call _dissoc!,$(1),$(call str_decode,$($(key)_value))))
+
 # set a key/value in the hash map
-_assoc! = $(foreach k,$(subst =,$(__equal),$(2)),$(if $(call _undefined?,$(1)_$(k)_value),$(eval $(1)_size := $(call gmsl_plus,$($(1)_size),1)),)$(eval $(1)_$(k)_value := $(3))$(1))
+_assoc! = $(foreach k,$(subst =,$(__equal),$(2)),$(if $(call _undefined?,$(1)_$(k)_value),$(eval $(1)_size := $(call int_add,$($(1)_size),1)),)$(eval $(1)_$(k)_value := $(3))$(1))
 
 # unset a key in the hash map
-_dissoc! = $(foreach k,$(subst =,$(__equal),$(2)),$(if $(call _undefined?,$(1)_$(k)_value),,$(eval $(1)_$(k)_value := $(__undefined))$(eval $(1)_size := $(call gmsl_subtract,$($(1)_size),1))))$(1)
+_dissoc! = $(foreach k,$(subst =,$(__equal),$(2)),$(if $(call _undefined?,$(1)_$(k)_value),,$(eval $(1)_$(k)_value := $(__undefined))$(eval $(1)_size := $(call int_sub,$($(1)_size),1))))$(1)
 
 # Hash map and vector functions
 
@@ -190,14 +204,14 @@ _get = $(strip \
         $(if $(call _hash_map?,$(1)),\
           $(foreach k,$(subst =,$(__equal),$(2)),$(if $(call _undefined?,$(1)_$(k)_value),,$($(1)_$(k)_value))),\
           $(if $(call _vector?,$(1)),\
-            $(word $(call gmsl_plus,1,$(2)),$($(1)_value)),\
+            $(word $(call int_add,1,$(2)),$($(1)_value)),\
             ,)))
 
 _contains? = $(strip \
                $(if $(call _hash_map?,$(1)),\
                  $(foreach k,$(subst =,$(__equal),$(2)),$(if $(call _undefined?,$(1)_$(k)_value),,$(__true))),\
                  $(if $(call _vector?,$(1)),\
-                   $(if $(word $(call gmsl_plus,1,$(2)),$($(1)_value)),$(__true),),\
+                   $(if $(word $(call int_add,1,$(2)),$($(1)_value)),$(__true),),\
                    ,)))
 
 
@@ -205,7 +219,7 @@ _contains? = $(strip \
 
 _sequential? = $(if $(filter $(__obj_magic)_list_% $(__obj_magic)_vect_%,$(1)),$(__true),)
 
-_nth = $(word $(call gmsl_plus,1,$(2)),$($(1)_value))
+_nth = $(word $(call int_add,1,$(2)),$($(1)_value))
 
 # conj that mutates a sequence in-place to append the call arguments
 _conj! = $(eval $(1)_value := $(strip $($(1)_value) $2 $3 $4 $5 $6 $7 $8 $9 $(10) $(11) $(12) $(13) $(14) $(15) $(16) $(17) $(18) $(19) $(20)))$(1)

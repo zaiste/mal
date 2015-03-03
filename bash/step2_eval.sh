@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 source $(dirname $0)/reader.sh
 source $(dirname $0)/printer.sh
@@ -74,7 +74,7 @@ PRINT () {
 declare -A REPL_ENV
 REP () {
     r=
-    READ "${1}" || return 1
+    READ "${1}"
     EVAL "${r}" REPL_ENV
     PRINT "${r}"
 }
