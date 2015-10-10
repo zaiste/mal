@@ -33,7 +33,7 @@ matrix:
     - env: IMPL=julia
     - env: IMPL=lua
     - env: IMPL=make
-    - env: IMPL=mal BUILD_IMPL=js
+    #- env: IMPL=mal BUILD_IMPL=js
     #- env: IMPL=matlab  # licensed (until port to Octave)
     - env: IMPL=miniMAL BUILD_IMPL=js
     - env: IMPL=nim
@@ -57,14 +57,14 @@ script:
   # Build
   - ./.travis_build.sh
 
+  # NOTE: use master branch
   # Regular tests
-  - ./.travis_test.sh test ${IMPL}
-  - cat test.err || true; rm -f test.err
-
-  # NOTE: use self-host-test branch
-  # Self-hosted tests
-  #- ./.travis_test.sh test mal ${IMPL}
+  #- ./.travis_test.sh test ${IMPL}
   #- cat test.err || true; rm -f test.err
+
+  # Self-hosted tests
+  - ./.travis_test.sh test mal ${IMPL}
+  - cat test.err || true; rm -f test.err
 
   # Performance tests
   #- ./.travis_test.sh perf ${IMPL}
