@@ -19,7 +19,7 @@ matrix:
     - env: IMPL=clojure
     - env: IMPL=crystal
     - env: IMPL=elixir
-    - env: IMPL=erlang
+    #- env: IMPL=erlang  # exhausts memory in self-hosted mode
     - env: IMPL=es6
     - env: IMPL=factor
     - env: IMPL=forth
