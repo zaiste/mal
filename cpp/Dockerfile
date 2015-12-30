@@ -1,11 +1,25 @@
-FROM ubuntu:utopic
-MAINTAINER Stephen Thirlwall <sdt@dr.com>
+FROM ubuntu:vivid
+MAINTAINER Joel Martin <github@martintribe.org>
 
-RUN apt-get -y update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        g++-4.9 \
-        libreadline-dev \
-        make \
-        && /bin/true
+##########################################################
+# General requirements for testing or common across many
+# implementations
+##########################################################
 
+RUN apt-get -y update
+
+# Required for running tests
+RUN apt-get -y install make python
+
+# Some typical implementation and test requirements
+RUN apt-get -y install curl libreadline-dev libedit-dev
+
+RUN mkdir -p /mal
 WORKDIR /mal
+
+##########################################################
+# Specific implementation requirements
+##########################################################
+
+# Install g++ for any C/C++ based implementations
+RUN apt-get -y install g++

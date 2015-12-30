@@ -10,6 +10,7 @@ STEPS = step0_repl step1_read_print step2_eval step3_env \
 all: node_modules $(foreach s,$(STEPS),build/$(s).js)
 
 build/%.js: %.js
+	@mkdir -p $(dir $@)
 	babel --source-maps true $< --out-file $@
 
 build/step0_repl.js: step0_repl.js build/node_readline.js
@@ -35,8 +36,10 @@ clean:
 
 stats: $(SOURCES)
 	@wc $^
+	@printf "%5s %5s %5s %s\n" `grep -E "^[[:space:]]*//|^[[:space:]]*$$" $^ | wc` "[comments/blanks]"
 stats-lisp: $(SOURCES_LISP)
 	@wc $^
+	@printf "%5s %5s %5s %s\n" `grep -E "^[[:space:]]*//|^[[:space:]]*$$" $^ | wc` "[comments/blanks]"
 
 tests: $(TESTS)
 

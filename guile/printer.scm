@@ -25,7 +25,7 @@
       (string-join
        (hash-map->list
         (lambda (k v)
-          (format #f "~a ~a" (pr_str k #t) (pr_str v #t)))
+          (format #f "~a ~a" (p k) (p v)))
         hm)
        " ")
       port)
@@ -37,7 +37,7 @@
      (string-sub
       (string-sub s "\\\\" "\\\\")
       "\"" "\\\"")
-     "\n" "\\\n"))
+     "\n" "\\n"))
   (define (%pr_str o) (pr_str o readable?))
   (match obj
     ((? box?) (%pr_str (unbox obj)))
@@ -48,8 +48,8 @@
     ((? hash-table?) (print-hashmap obj %pr_str))
     ((? string?)
      (cond
-      ((string-match "^\u029e(.*)" obj)
-       => (lambda (m) (format #f ":~a" (match:substring m 1))))
+      ((_keyword? obj)
+       => (lambda (m) (format #f ":~a" (substring obj 1))))
       (else (if readable? (format #f "\"~a\"" (->str obj)) obj))))
     ;;((? number?) (format #f "~a" obj))
     ;;((? symbol?) (format #f "~a" obj))

@@ -14,9 +14,9 @@ def _pr_a_str(s, print_readably=True):
     if len(s) > 0 and s[0] == u'\u029e':
         return u':' + s[1:]
     elif print_readably:
-        return u'"' + types._replace(u'\\n', u'\\n',
+        return u'"' + types._replace(u'\n', u'\\n',
                         types._replace(u'\"', u'\\"',
-                        types._replace(u'\\', u'\\\\', s))) + u'"'
+                          types._replace(u'\\', u'\\\\', s))) + u'"'
     else:
         return s
 
@@ -47,8 +47,8 @@ def _pr_str(obj, print_readably=True):
         return u"true"
     elif obj is false:
         return u"false"
-    elif isinstance(obj, MalAtom):
-        return u"(atom " + _pr_str(obj.value,_r) + u")"
+    elif types._atom_Q(obj):
+        return u"(atom " + _pr_str(obj.get_value(),_r) + u")"
     elif isinstance(obj, MalSym):
         return obj.value
     elif isinstance(obj, MalInt):
