@@ -66,12 +66,9 @@ function _equal_Q (a, b) {
         }
         return true;
     case 'hash-map':
-        var akeys = Object.keys(a).sort(),
-            bkeys = Object.keys(b).sort();
-        if (akeys.length !== bkeys.length) { return false; }
-        for (var i=0; i<akeys.length; i++) {
-            if (akeys[i] !== bkeys[i]) { return false; }
-            if (! equal_Q(a[akeys[i]], b[bkeys[i]])) { return false; }
+        if (Object.keys(a).length !== Object.keys(b).length) { return false; }
+        for (var k in a) {
+            if (! _equal_Q(a[k], b[k])) { return false; }
         }
         return true;
     default:
@@ -127,7 +124,13 @@ function _symbol_Q(obj) { return obj instanceof Symbol; }
 
 
 // Keywords
-function _keyword(name) { return "\u029e" + name; }
+function _keyword(obj) {
+    if (typeof obj === 'string' && obj[0] === '\u029e') {
+        return obj;
+    } else {
+        return "\u029e" + obj;
+    }
+}
 function _keyword_Q(obj) {
     return typeof obj === 'string' && obj[0] === '\u029e';
 }
@@ -273,7 +276,8 @@ function read_atom (reader) {
     } else if (token[0] === "\"") {
         return token.slice(1,token.length-1) 
             .replace(/\\"/g, '"')
-            .replace(/\\n/g, "\n"); // string
+            .replace(/\\n/g, "\n")
+            .replace(/\\\\/g, "\\"); // string
     } else if (token[0] === ":") {
         return types._keyword(token.slice(1));
     } else if (token === "nil") {
@@ -706,7 +710,7 @@ function is_pair(x) {
 function quasiquote(ast) {
     if (!is_pair(ast)) {
         return [types._symbol("quote"), ast];
-    } else if (ast[0].value === 'unquote') {
+    } else if (types._symbol_Q(ast[0]) && ast[0].value === 'unquote') {
         return ast[1];
     } else if (is_pair(ast[0]) && ast[0][0].value === 'splice-unquote') {
         return [types._symbol("concat"),
