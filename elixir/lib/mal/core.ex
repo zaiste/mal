@@ -76,7 +76,16 @@ defmodule Mal.Core do
       |> String.strip(?\n)
   end
 
-  defp convert_vector({:vector, ast, meta}), do: {:list, ast, meta}
+  defp convert_vector({type, ast, meta}) when type == :map do
+    new_ast = Enum.map(ast, fn {key, value} ->
+      {key, convert_vector(value)}
+    end)
+    {:map, new_ast, meta}
+  end
+  defp convert_vector({type, ast, meta}) when type in [:list, :vector] do
+    new_ast = Enum.map(ast, &convert_vector/1)
+    {:list, new_ast, meta}
+  end
   defp convert_vector(other), do: other
 
   defp equal([a, b]) do

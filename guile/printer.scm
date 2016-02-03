@@ -25,7 +25,7 @@
       (string-join
        (hash-map->list
         (lambda (k v)
-          (format #f "~a ~a" (pr_str k #t) (pr_str v #t)))
+          (format #f "~a ~a" (p k) (p v)))
         hm)
        " ")
       port)
@@ -37,7 +37,7 @@
      (string-sub
       (string-sub s "\\\\" "\\\\")
       "\"" "\\\"")
-     "\n" "\\\n"))
+     "\n" "\\n"))
   (define (%pr_str o) (pr_str o readable?))
   (match obj
     ((? box?) (%pr_str (unbox obj)))

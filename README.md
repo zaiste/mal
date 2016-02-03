@@ -6,7 +6,7 @@
 
 Mal is a Clojure inspired Lisp interpreter.
 
-Mal is implemented in 40 different languages:
+Mal is implemented in 45 different languages:
 
 * GNU awk
 * Bash shell
@@ -16,6 +16,7 @@ Mal is implemented in 40 different languages:
 * Clojure
 * CoffeeScript
 * Crystal
+* D
 * Elixir
 * Erlang
 * ES6 (ECMAScript 6 / ECMAScript 2015)
@@ -26,9 +27,11 @@ Mal is implemented in 40 different languages:
 * Groovy
 * GNU Guile
 * Haskell
+* Haxe
 * Java
 * JavaScript ([Online Demo](http://kanaka.github.io/mal))
 * Julia
+* Kotlin
 * Lua
 * GNU Make
 * mal itself
@@ -47,6 +50,8 @@ Mal is implemented in 40 different languages:
 * Rust
 * Scala
 * Swift
+* Tcl
+* Vimscript
 * Visual Basic.NET
 
 
@@ -145,6 +150,9 @@ mono ./stepX_YYY.exe
 
 ### Clojure
 
+For the most part the Clojure implementation requires Clojure 1.5,
+however, to pass all tests, Clojure 1.8.0-RC4 is required.
+
 ```
 cd clojure
 lein with-profile +stepX trampoline run
@@ -162,13 +170,26 @@ coffee ./stepX_YYY
 
 *The Crystal implementation of mal was created by [Linda_pp](https://github.com/rhysd)*
 
-The Crystal implementation of mal has been tested with Crystal 0.8.0.
+The Crystal implementation of mal has been tested with Crystal 0.10.0.
 
 ```
 cd crystal
 crystal run ./stepX_YYY.cr
     # OR
 make   # needed to run tests
+./stepX_YYY
+```
+
+### D
+
+*The D implementation was created by [Dov Murik](https://github.com/dubek)*
+
+The D implementation of mal was tested with GDC 4.8.  It requires the GNU
+readline library.
+
+```
+cd d
+make
 ./stepX_YYY
 ```
 
@@ -189,7 +210,8 @@ iex -S mix stepX_YYY
 
 *The Erlang implementation was created by [Nathan Fiedler (nlfiedler)](https://github.com/nlfiedler)*
 
-The Erlang implementation of mal requires [Erlang/OTP R17](http://www.erlang.org/download.html) and [rebar](https://github.com/rebar/rebar) to build.
+The Erlang implementation of mal requires [Erlang/OTP R17](http://www.erlang.org/download.html)
+and [rebar](https://github.com/rebar/rebar) to build.
 
 ```
 cd erlang
@@ -236,7 +258,7 @@ The Factor implementation of mal has been tested with Factor 0.97
 
 ```
 cd factor
-FACTOR_ROOTS=src factor -run=stepX_YYY
+FACTOR_ROOTS=. factor -run=stepX_YYY
 ```
 
 ### Forth
@@ -293,6 +315,28 @@ make
 ./stepX_YYY
 ```
 
+### Haxe
+
+The Haxe implementation of mal requires Haxe version 3.2 to compile.
+Four different Haxe targets are supported: Neko, Python, C++, and
+JavaScript.
+
+```
+cd haxe
+# Neko
+make all-neko
+neko ./stepX_YYY.n
+# Python
+make all-python
+python3 ./stepX_YYY.py
+# C++
+make all-cpp
+./cpp/stepX_YYY
+# JavaScript
+make all-js
+node ./stepX_YYY.js
+```
+
 
 ### Java 1.7
 
@@ -316,11 +360,23 @@ node stepX_YYY.js
 
 ### Julia
 
-The Julia implementation of mal has been tested with Julia 0.3.7.
+The Julia implementation of mal requires Julia 0.4.
 
 ```
 cd julia
 julia stepX_YYY.jl
+```
+
+### Kotlin
+
+*The Kotlin implementation was created by [Javier Fernandez-Ivern](https://github.com/ivern)*
+
+The Kotlin implementation of mal has been tested with Kotlin 1.0.0-beta.
+
+```
+cd kotlin
+make
+java -jar stepX_YYY.jar
 ```
 
 ### Lua
@@ -519,6 +575,30 @@ make
 ./stepX_YYY
 ```
 
+### Tcl 8.6
+
+*The Tcl implementation was created by [Dov Murik](https://github.com/dubek)*
+
+The Tcl implementation of mal requires Tcl 8.6 to run.  For readline line
+editing support, install tclreadline.
+
+```
+cd tcl
+tclsh ./stepX_YYY.tcl
+```
+
+### Vimscript
+
+*The Vimscript implementation was created by [Dov Murik](https://github.com/dubek)*
+
+The Vimscript implementation of mal requires Vim to run.  It has been tested
+with Vim 7.4.
+
+```
+cd vimscript
+./run_vimscript.sh ./stepX_YYY.vim
+```
+
 ### Visual Basic.NET ###
 
 The VB.NET implementation of mal has been tested on Linux using the Mono
@@ -556,31 +636,31 @@ make test
 * To run all tests against a single implementation:
 
 ```
-make test^IMPL
+make "test^IMPL"
 
 # e.g.
-make test^clojure
-make test^js
+make "test^clojure"
+make "test^js"
 ```
 
 * To run tests for a single step against all implementations:
 
 ```
-make test^stepX
+make "test^stepX"
 
 # e.g.
-make test^step2
-make test^step7
+make "test^step2"
+make "test^step7"
 ```
 
 * To run tests for a specific step against a single implementation:
 
 ```
-make test^IMPL^stepX
+make "test^IMPL^stepX"
 
 # e.g
-make test^ruby^step3
-make test^ps^step4
+make "test^ruby^step3"
+make "test^ps^step4"
 ```
 
 ### Self-hosted functional tests
@@ -589,14 +669,47 @@ make test^ps^step4
   as the test implementation and use the `MAL_IMPL` make variable
   to change the underlying host language (default is JavaScript):
 ```
-make MAL_IMPL=IMPL test^mal^step2
+make MAL_IMPL=IMPL "test^mal^step2"
 
 # e.g.
-make test^mal^step2   # js is default
-make MAL_IMPL=ruby test^mal^step2
-make MAL_IMPL=python test^mal^step2
+make "test^mal^step2"   # js is default
+make MAL_IMPL=ruby "test^mal^step2"
+make MAL_IMPL=python "test^mal^step2"
 ```
 
+### Starting the REPL
+
+* To start the REPL of an implementation in a specific step:
+
+```
+make "repl^IMPL^stepX"
+
+# e.g
+make "repl^ruby^step3"
+make "repl^ps^step4"
+```
+
+* If you omit the step, then `stepA` is used:
+
+```
+make "repl^IMPL"
+
+# e.g
+make "repl^ruby"
+make "repl^ps"
+```
+
+* To start the REPL of the self-hosted implementation, specify `mal` as the
+  REPL implementation and use the `MAL_IMPL` make variable to change the
+  underlying host language (default is JavaScript):
+```
+make MAL_IMPL=IMPL "repl^mal^stepX"
+
+# e.g.
+make "repl^mal^step2"   # js is default
+make MAL_IMPL=ruby "repl^mal^step2"
+make MAL_IMPL=python "repl^mal"
+```
 
 ### Performance tests
 
@@ -608,34 +721,34 @@ that I'm willing to sell you for cheap.
 
 * To run performance tests against a single implementation:
 ```
-make perf^IMPL
+make "perf^IMPL"
 
 # e.g.
-make perf^js
+make "perf^js"
 ```
 
 * To run performance tests against all implementations:
 ```
-make perf
+make "perf"
 ```
 
 ### Generating language statistics
 
 * To report line and byte statistics for a single implementation:
 ```
-make stats^IMPL
+make "stats^IMPL"
 
 # e.g.
-make stats^js
+make "stats^js"
 ```
 
 * To report line and bytes statistics for general Lisp code (env, core
   and stepA):
 ```
-make stats-lisp^IMPL
+make "stats-lisp^IMPL"
 
 # e.g.
-make stats-lisp^js
+make "stats-lisp^js"
 ```
 
 ## Docker test environment
@@ -662,7 +775,7 @@ implementations and tests:
 You can also specify a command to run within the container. For
 example, to run step2 tests for every implementation (except MATLAB):
 ```bash
-./tests/docker-run.sh make SKIP_IMPLS="matlab" test^step2
+./tests/docker-run.sh make SKIP_IMPLS="matlab" "test^step2"
 ```
 
 **Notes**:

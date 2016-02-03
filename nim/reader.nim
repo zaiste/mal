@@ -28,7 +28,7 @@ proc tokenize(str: string): seq[string] =
   while pos < str.len:
     var matches: array[2, string]
     var len = str.findBounds(tokenRE, matches, pos)
-    if len.first != -1 and len.last != -1:
+    if len.first != -1 and len.last != -1 and len.last >= len.first:
       pos = len.last + 1
       if matches[0][0] != ';':
         result.add matches[0]
@@ -61,7 +61,7 @@ proc read_hash_map(r: var Reader): MalType =
 proc read_atom(r: var Reader): MalType =
   let t = r.next
   if t.match(intRE): number t.parseInt
-  elif t[0] == '"':  str t[1 .. <t.high].replace("\\\"", "\"")
+  elif t[0] == '"':  str t[1 .. <t.high].replace("\\\"", "\"").replace("\\n", "\n").replace("\\\\", "\\")
   elif t[0] == ':':  keyword t[1 .. t.high]
   elif t == "nil":   nilObj
   elif t == "true":  trueObj

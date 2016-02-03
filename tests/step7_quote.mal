@@ -49,6 +49,10 @@
 ;=>(1 2 (3 4))
 `(1 2 (3 4))
 ;=>(1 2 (3 4))
+(quasiquote (nil))
+;=>(nil)
+`(nil)
+;=>(nil)
 
 
 ;; Testing unquote
@@ -90,6 +94,8 @@
 ;=>false
 (= "abc" 'abc)
 ;=>false
+(= "abc" (str 'abc))
+;=>true
 
 ;;;;; Test quine
 ;;; TODO: needs expect line length fix

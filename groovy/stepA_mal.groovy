@@ -36,7 +36,8 @@ pair_Q = { ast -> types.sequential_Q(ast) && ast.size() > 0}
 quasiquote = { ast ->
     if (! pair_Q(ast)) {
         [new MalSymbol("quote"), ast]
-    } else if (ast[0].class == MalSymbol &&
+    } else if (ast[0] != null &&
+               ast[0].class == MalSymbol &&
                ast[0].value == "unquote") {
         ast[1]
     } else if (pair_Q(ast[0]) && ast[0][0].class == MalSymbol && 
@@ -68,7 +69,7 @@ EVAL = { ast, env ->
     if (! types.list_Q(ast)) return eval_ast(ast, env)
 
     ast = macroexpand(ast, env)
-    if (! types.list_Q(ast)) return ast
+    if (! types.list_Q(ast)) return eval_ast(ast, env)
 
     switch (ast[0]) {
     case { it instanceof MalSymbol && it.value == "def!" }:
@@ -166,7 +167,9 @@ REP("(def! *host-language* \"groovy\")")
 REP("(def! not (fn* (a) (if a false true)))")
 REP("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))")
 REP("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))");
-REP("(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))");
+REP("(def! *gensym-counter* (atom 0))");
+REP("(def! gensym (fn* [] (symbol (str \"G__\" (swap! *gensym-counter* (fn* [x] (+ 1 x)))))))");
+REP("(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) (let* (condvar (gensym)) `(let* (~condvar ~(first xs)) (if ~condvar ~condvar (or ~@(rest xs)))))))))");
 
 
 if (this.args.size() > 0) {

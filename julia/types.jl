@@ -38,9 +38,27 @@ function equal_Q(a, b)
     end
 
     if sequential_Q(a)
-        tuple(a...) == tuple(b...)
-    elseif isa(a,String)
+        if length(a) !== length(b)
+            return false
+        end
+        for (x, y) in zip(a,b)
+            if !equal_Q(x, y)
+                return false
+            end
+        end
+        return true
+    elseif isa(a,AbstractString)
         a == b
+    elseif isa(a,Dict)
+        if length(a) !== length(b)
+          return false
+        end
+        for (k,v) in a
+            if !equal_Q(v,b[k])
+                return false
+            end
+        end
+        return true
     else
         a === b
     end

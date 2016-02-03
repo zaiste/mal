@@ -94,7 +94,7 @@ quux_RUNSTEP =  ../$(2) $(3)
 
 This allows you to run tests against your implementation like this:
 ```
-make test^quux^stepX
+make "test^quux^stepX"
 ```
 
 
@@ -185,7 +185,7 @@ It is time to run your first tests. This will check that your program
 does input and output in a way that can be captured by the test
 harness. Go to the top level and run the following:
 ```
-make test^quux^step0
+make "test^quux^step0"
 ```
 
 Add and then commit your new `step0_repl.qx` and `Makefile` to git.
@@ -200,7 +200,7 @@ make-a-lisp process.
   interpreter REPL. Many languages have a library/module that provide
   line editing support. Another option if your language supports it is
   to use an FFI (foreign function interface) to load and call directly
-  into GNU readline, editline, or libnoise library. Add line
+  into GNU readline, editline, or linenoise library. Add line
   editing interface code to `readline.qx`
 
 
@@ -257,7 +257,7 @@ expression support.
 * If the target language has objects types (OOP), then the next step
   is to create a simple stateful Reader object in `reader.qx`. This
   object will store the tokens and a position. The Reader object will
-  have two methods: `next` and `peek`. `next` returns the tokens at
+  have two methods: `next` and `peek`. `next` returns the token at
   the current position and increments the position. `peek` just
   returns the token at the current position.
 
@@ -273,6 +273,26 @@ expression support.
 ```
 [\s,]*(~@|[\[\]{}()'`~^@]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)
 ```
+* For each match captured within the parenthesis starting at char 6 of the
+  regular expression a new token will be created.
+
+  * `[\s,]*`: Matches any number of whitespaces or commas. This is not captured
+    so it will be ignored and not tokenized.
+
+  * `~@`: Captures the special two-characters `~@` (tokenized).
+
+  * ```[\[\]{}()'`~^@]```: Captures any special single character, one of
+    ```[]{}'`~^@``` (tokenized).
+
+  * `"(?:\\.|[^\\"])*"`: Starts capturing at a double-quote and stops at the
+    next double-quote unless it was proceeded by a backslash in which case it
+    includes it until the next double-quote (tockenized).
+
+  * `;.*`: Captures any sequence of characters starting with `;` (tokenized).
+
+  * ```[^\s\[\]{}('"`,;)]*```: Captures a sequence of zero or more non special
+    characters (e.g. symbols, numbers, "true", "false", and "nil") and is sort
+    of the inverse of the one above that captures special characters (tokenized).
 
 * Add the function `read_form` to `reader.qx`. This function
   will peek at the first token in the Reader object and switch on the
@@ -344,7 +364,7 @@ Once you have gotten past those simple manual tests, it is time to run
 the full suite of step 1 tests. Go to the top level and run the
 following:
 ```
-make test^quux^step1
+make "test^quux^step1"
 ```
 
 Fix any test failures related to symbols, numbers and lists.
@@ -365,15 +385,17 @@ and each step will give progressively more bang for the buck.
 
 * Add support for the other basic data type to your reader and printer
   functions: string, nil, true, and false. These become mandatory at
-  step 4. When a string is read, a slash followed by a doublequote is
-  translated into a plain doublequote character and a slash followed by
-  "n" is translated into a newline. To properly print a string (for
-  step 4 string functions), the `pr_str` function needs another
-  parameter called `print_readably`. When `print_readably` is true,
-  doublequotes and newlines are translated into their printed
-  representations (the reverse of the reader). The `PRINT` function in
-  the main program should call `pr_str` with print_readably set to
-  true.
+  step 4. When a string is read, the following transformations are
+  applied: a backslash followed by a doublequote is translated into
+  a plain doublequote character, a backslash followed by "n" is
+  translated into a newline, and a backslash followed by another
+  backslash is translated into a single backslash. To properly print
+  a string (for step 4 string functions), the `pr_str` function needs
+  another parameter called `print_readably`.  When `print_readably` is
+  true, doublequotes, newlines, and backslashes are translated into
+  their printed representations (the reverse of the reader). The
+  `PRINT` function in the main program should call `pr_str` with
+  print_readably set to true.
 
 * Add support for the other mal types: keyword, vector, hash-map, and
   atom.
@@ -486,7 +508,7 @@ a function references using an arguments list.
 
 Now go to the top level, run the step 2 tests and fix the errors.
 ```
-make test^quux^step2
+make "test^quux^step2"
 ```
 
 You now have a simple prefix notation calculator!
@@ -583,7 +605,7 @@ Try some simple environment tests:
 
 Now go to the top level, run the step 3 tests and fix the errors.
 ```
-make test^quux^step3
+make "test^quux^step3"
 ```
 
 You mal implementation is still basically just a numeric calculator
@@ -716,7 +738,7 @@ tests in step 4 but all of the non-optional tests that do not involve
 strings should be able to pass now.
 
 ```
-make test^quux^step4
+make "test^quux^step4"
 ```
 
 Your mal implementation is already beginning to look like a real
@@ -835,7 +857,7 @@ broken anything by adding TCO.
 Now go to the top level, run the step 5 tests.
 
 ```
-make test^quux^step5
+make "test^quux^step5"
 ```
 
 Look at the step 5 test file `tests/step5_tco.mal`. The `sum-to`
@@ -892,7 +914,7 @@ diff -urp ../process/step5_tco.txt ../process/step6_file.txt
   (closed over from outside) as the second argument. The result of
   the `EVAL` call is returned. This simple but powerful addition
   allows your program to treat mal data as a mal program. For example,
-  you can now to this: 
+  you can now to this:
 ```
 (def! mal-prog (list + 1 2))
 (eval mal-prog)
@@ -915,10 +937,41 @@ The `load-file` function does the following:
   * Call `eval` (the one in the REPL environment) on the AST returned
     from `read-string` to "run" it.
 
+Besides adding file and eval support, we'll add support for the atom data type
+in this step.  An atom is the Mal way to represent *state*; it is
+heavily inspired by [Clojure's atoms](http://clojure.org/state).  An atom holds
+a reference to a single Mal value of any type; it supports reading that Mal value
+and *modifying* the reference to point to another Mal value.  Note that this is
+the only Mal data type that is mutable (but the Mal values it refers to are
+still immutable; immutability is explained in greater detail in step 7).
+You'll need to add 5 functions to the core namesapce to support atoms:
+
+  * `atom`: Takes a Mal value and returns a new atom which points to that Mal value.
+  * `atom?`: Takes an argument and returns `true` if the argument is an atom.
+  * `deref`: Takes an atom argument and returns the Mal value referenced by this atom.
+  * `reset!`: Takes an atom and a Mal value; the atom is modified to refer to
+    the given Mal value. The Mal value is returned.
+  * `swap!`: Takes an atom, a function, and zero or more function arguments. The
+    atom's value is modified to result of applying the function with the atom's
+    value as the first argument and the optionally given function arguments as
+    the rest of the arguments. The new atom's value is returned. (Side note: Mal is
+    single-threaded, but in concurrent languages like Clojure, `swap!` promises
+    atomic update: `(swap! myatom (fn* [x] (+ 1 x)))` will always increase the
+    `myatom` counter by one and will not suffer from missing updates when the
+    atom is updated from multiple threads.)
+
+Optionally, you can add a reader macro `@` which will serve as a short form for
+`deref`, so that `@a` is equivalent to `(deref a)`.  In order to do that, modify
+the conditional in reader `read_form` function and add a case which deals with
+the `@` token: if the token is `@` (at sign) then return a new list that
+contains the symbol `deref` and the result of reading the next form
+(`read_form`).
+
 Now go to the top level, run the step 6 tests. The optional tests will
-need support from the reader for comments, vectors and hash-maps:
+need support from the reader for comments, vectors, hash-maps and the `@`
+reader macro:
 ```
-make test^quux^step6
+make "test^quux^step6"
 ```
 
 Congratulations, you now have a full-fledged scripting language that
@@ -1056,7 +1109,7 @@ Mal borrows most of its syntax and feature-set).
 
 Now go to the top level, run the step 7 tests:
 ```
-make test^quux^step7
+make "test^quux^step7"
 ```
 
 Quoting is one of the more mundane functions available in mal, but do
@@ -1150,8 +1203,9 @@ simple.
   section), perform macro expansion by calling the `macroexpand`
   function with the current value of `ast` and `env`. Set `ast` to the
   result of that call. If the new value of `ast` is no longer a list
-  after macro expansion, then return `ast`, otherwise continue with
-  the rest of the apply section (special forms switch).
+  after macro expansion, then return the result of calling `eval_ast`
+  on it, otherwise continue with the rest of the apply section
+  (special forms switch).
 
 * Add a new special form condition for `macroexpand`. Call the
   `macroexpand` function using the first `ast` argument (second list
@@ -1161,7 +1215,7 @@ simple.
 
 Now go to the top level, run the step 8 tests:
 ```
-make test^quux^step8
+make "test^quux^step8"
 ```
 
 There is a reasonably good chance that the macro tests will not pass
@@ -1267,7 +1321,7 @@ diff -urp ../process/step8_macros.txt ../process/step9_try.txt
     chain). Yes, it is ugly, but you were warned in the section on
     picking a language.
 
-* Add the `throw` core function. 
+* Add the `throw` core function.
   * If your language supports try/catch style exception handling, then
     this function takes a mal type/value and throws/raises it as an
     exception. In order to do this, you may need to create a custom
@@ -1304,7 +1358,7 @@ diff -urp ../process/step8_macros.txt ../process/step9_try.txt
 
 Now go to the top level, run the step 9 tests:
 ```
-make test^quux^step9
+make "test^quux^step9"
 ```
 
 Your mal implementation is now essentially a fully featured Lisp
@@ -1393,15 +1447,12 @@ diff -urp ../process/step9_try.txt ../process/stepA_mal.txt
 * Add meta-data support to mal functions. TODO. Should be separate
   from the function macro flag.
 
-* Add atom data type and supporting core functions. This is the only
-  mal data type/value that is mutable. TODO
-
 * Add the `readline` core function. TODO
 
 
 Now go to the top level, run the step A tests:
 ```
-make test^quux^stepA
+make "test^quux^stepA"
 ```
 
 Once you have passed all the non-optional step A tests, it is time to
@@ -1420,7 +1471,7 @@ There is a very good chance that you will encounter an error at some
 point while trying to run the mal in mal implementation steps above.
 Debugging failures that happen while self-hosting is MUCH more
 difficult and mind bending. One of the best approaches I have
-personally found is to add prn statements to the mal implementation 
+personally found is to add prn statements to the mal implementation
 step (not your own implementation of mal) that is causing problems.
 
 Another approach I have frequently used is to pull out the code from
@@ -1435,7 +1486,7 @@ self-hosting when it is much more difficult to track down and fix.
 Once you can manually run all the self-hosted steps, it is time to run
 all the tests in self-hosted mode:
 ```
-make MAL_IMPL=quux test^mal
+make MAL_IMPL=quux "test^mal"
 ```
 
 When you run into problems (which you almost certainly will), use the
@@ -1449,12 +1500,52 @@ might even be asking if you can continue the "inception" by using your
 implementation to run a mal implementation which itself runs the mal
 implementation.
 
-### Optional
+
+### Optional: gensym
+
+The `or` macro we introduced at step 8 has a bug. It defines a
+variable called `or_FIXME`, which "shadows" such a binding from the
+user's code (which uses the macro). If a user has a variable called
+`or_FIXME`, it cannot be used as an `or` macro argument. In order to
+fix that, we'll introduce `gensym`: a function which returns a symbol
+which was never used before anywhere in the program. This is also an
+example for the use of mal atoms to keep state (the state here being
+the number of symbols produced by `gensym` so far).
+
+Previously you used `rep` to define the `or` macro. Remove that
+definition and use `rep` to define the new counter, `gensym` function
+and the clean `or` macro. Here are the string arguments you need to
+pass to `rep`:
+```
+"(def! *gensym-counter* (atom 0))"
+
+"(def! gensym (fn* [] (symbol (str \"G__\" (swap! *gensym-counter* (fn* [x] (+ 1 x)))))))"
+
+"(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) (let* (condvar (gensym)) `(let* (~condvar ~(first xs)) (if ~condvar ~condvar (or ~@(rest xs)))))))))"
+```
+
+For extra information read [Peter Seibel's thorough discussion about
+`gensym` and leaking macros in Common Lisp](http://www.gigamonkeys.com/book/macros-defining-your-own.html#plugging-the-leaks).
+
+
+### Optional additions
 
 * Add metadata support to composite data types, symbols and native
   functions. TODO
-* `time-ms` TODO
-* `conj` TODO
+* Add the following new core functions:
+  * `time-ms`: takes no arguments and returns the number of
+    milliseconds since epoch (00:00:00 UTC Janurary 1, 1970), or, if
+    not possible, since another point in time (`time-ms` is usually
+    used relatively to measure time durations).  After `time-ms` is
+    implemented, you can run the mal implementation performance
+    benchmarks by running `make perf^quux`.
+  * `conj`: takes a collection and one or more elements as arguments
+    and returns a new collection which includes the original
+    collection and the new elements.  If the collection is a list, a
+    new list is returned with the elements inserted at the start of
+    the given list in opposite order; if the collection is a vector, a
+    new vector is returned with the elements added to the end of the
+    given vector.
 
 
 ## TODO:

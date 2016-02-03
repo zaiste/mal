@@ -1,5 +1,6 @@
 #!/usr/bin/env julia
 
+push!(LOAD_PATH, pwd(), "/usr/share/julia/base")
 import readline_mod
 import reader
 import printer
@@ -14,7 +15,7 @@ end
 # EVAL
 function eval_ast(ast, env)
     if typeof(ast) == Symbol
-        get(env,ast)
+        env_get(env,ast)
     elseif isa(ast, Array) || isa(ast, Tuple)
         map((x) -> EVAL(x,env), ast)
     elseif isa(ast, Dict)
@@ -29,11 +30,11 @@ function EVAL(ast, env)
 
     # apply
     if     :def! == ast[1]
-        set(env, ast[2], EVAL(ast[3], env))
+        env_set(env, ast[2], EVAL(ast[3], env))
     elseif symbol("let*") == ast[1]
         let_env = Env(env)
         for i = 1:2:length(ast[2])
-            set(let_env, ast[2][i], EVAL(ast[2][i+1], let_env))
+            env_set(let_env, ast[2][i], EVAL(ast[2][i+1], let_env))
         end
         EVAL(ast[3], let_env)
     elseif :do == ast[1]
@@ -50,7 +51,7 @@ function EVAL(ast, env)
             EVAL(ast[3], env)
         end
     elseif symbol("fn*") == ast[1]
-        (args...) -> EVAL(ast[3], Env(env, ast[2], args))
+        (args...) -> EVAL(ast[3], Env(env, ast[2], Any[args...]))
     else
         el = eval_ast(ast, env)
         f, args = el[1], el[2:end]
@@ -86,8 +87,10 @@ while true
         else
             println("Error: $(string(e))")
         end
-        bt = catch_backtrace()
-        Base.show_backtrace(STDERR, bt)
+        if !isa(e, StackOverflowError)
+            bt = catch_backtrace()
+            Base.show_backtrace(STDERR, bt)
+        end
         println()
     end
 end
