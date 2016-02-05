@@ -21,6 +21,15 @@ function do_apply(f, all_args...)
     fn(args...)
 end
 
+function do_map(a,b)
+    # map and convert to array/list
+    if isa(a,types.MalFunc)
+        collect(map(a.fn,b))
+    else
+        collect(map(a,b))
+    end
+end
+
 function with_meta(obj, meta)
     new_obj = types.copy(obj)
     new_obj.meta = meta
@@ -74,12 +83,12 @@ ns = Dict{Any,Any}(
     :cons => (a,b) -> [Any[a]; Any[b...]],
     :concat => concat,
     :nth => (a,b) -> b+1 > length(a) ? error("nth: index out of range") : a[b+1],
-    :first => (a) -> isempty(a) ? nothing : first(a),
-    :rest => (a) -> Any[a[2:end]...],
+    :first => (a) -> a === nothing || isempty(a) ? nothing : first(a),
+    :rest => (a) -> a === nothing ? Any[] : Any[a[2:end]...],
     symbol("empty?") => isempty,
     :count => (a) -> a == nothing ? 0 : length(a),
     :apply => do_apply,
-    :map => (a,b) -> isa(a,types.MalFunc) ? [map(a.fn,b)...] : [map(a,b)...],
+    :map => do_map,
 
     :conj => nothing,
 
