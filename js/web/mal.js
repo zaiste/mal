@@ -111,6 +111,9 @@ function _clone (obj) {
 function _nil_Q(a) { return a === null ? true : false; }
 function _true_Q(a) { return a === true ? true : false; }
 function _false_Q(a) { return a === false ? true : false; }
+function _string_Q(obj) {
+    return typeof obj === 'string' && obj[0] !== '\u029e';
+}
 
 
 // Symbols
@@ -225,6 +228,7 @@ exports._clone = types._clone = _clone;
 exports._nil_Q = types._nil_Q = _nil_Q;
 exports._true_Q = types._true_Q = _true_Q;
 exports._false_Q = types._false_Q = _false_Q;
+exports._string_Q = types._string_Q = _string_Q;
 exports._symbol = types._symbol = _symbol;
 exports._symbol_Q = types._symbol_Q = _symbol_Q;
 exports._keyword = types._keyword = _keyword;
@@ -422,6 +426,42 @@ function _pr_str(obj, print_readably) {
 exports._pr_str = printer._pr_str = _pr_str;
 
 // Node vs browser behavior
+var interop = {};
+if (typeof module === 'undefined') {
+    var exports = interop,
+        GLOBAL = window;
+}
+
+function resolve_js(str) {
+    if (str.match(/\./)) {
+        var re = /^(.*)\.\([^\.]*)$/,
+            match = re.exec(str);
+        return [eval(match[0]), eval(str)];
+    } else {
+        return [GLOBAL, eval(str)];
+    }
+}
+
+function js_to_mal(obj) {
+    var cache = [];
+    var str = JSON.stringify(obj, function(key, value) {
+        if (typeof value === 'object' && value !== null) {
+            if (cache.indexOf(value) !== -1) {
+                // Circular reference found, discard key
+                return;
+            }
+            // Store value in our collection
+            cache.push(value);
+        }
+        return value;
+    });
+    cache = null; // Enable garbage collection
+    return JSON.parse(str);
+}
+
+exports.resolve_js = interop.resolve_js = resolve_js;
+exports.js_to_mal = interop.js_to_mal = js_to_mal;
+// Node vs browser behavior
 var env = {};
 if (typeof module === 'undefined') {
     var exports = env;
@@ -571,9 +611,9 @@ function nth(lst, idx) {
     else                  { throw new Error("nth: index out of range"); }
 }
 
-function first(lst) { return lst[0]; }
+function first(lst) { return (lst === null) ? null : lst[0]; }
 
-function rest(lst) { return lst.slice(1); }
+function rest(lst) { return (lst == null) ? [] : lst.slice(1); }
 
 function empty_Q(lst) { return lst.length === 0; }
 
@@ -592,6 +632,21 @@ function conj(lst) {
         return v;
     }
 }
+
+function seq(obj) {
+    if (types._list_Q(obj)) {
+        return obj.length > 0 ? obj : null;
+    } else if (types._vector_Q(obj)) {
+        return obj.length > 0 ? Array.prototype.slice.call(obj, 0): null;
+    } else if (types._string_Q(obj)) {
+        return obj.length > 0 ? obj.split('') : null;
+    } else if (obj === null) {
+        return null;
+    } else {
+        throw new Error("seq: called on non-sequence");
+    }
+}
+
 
 function apply(f) {
     var args = Array.prototype.slice.call(arguments, 1);
@@ -638,6 +693,7 @@ var ns = {'type': types._obj_type,
           'nil?': types._nil_Q,
           'true?': types._true_Q,
           'false?': types._false_Q,
+          'string?': types._string_Q,
           'symbol': types._symbol,
           'symbol?': types._symbol_Q,
           'keyword': types._keyword,
@@ -683,7 +739,9 @@ var ns = {'type': types._obj_type,
           'count': count,
           'apply': apply,
           'map': map,
+
           'conj': conj,
+          'seq': seq,
 
           'with-meta': with_meta,
           'meta': meta,
@@ -768,7 +826,12 @@ function _EVAL(ast, env) {
 
     // apply list
     ast = macroexpand(ast, env);
-    if (!types._list_Q(ast)) { return ast; }
+    if (!types._list_Q(ast)) {
+        return eval_ast(ast, env);
+    }
+    if (ast.length === 0) {
+        return ast;
+    }
 
     var a0 = ast[0], a1 = ast[1], a2 = ast[2], a3 = ast[3];
     switch (a0.value) {
@@ -866,7 +929,9 @@ rep("(def! *host-language* \"javascript\")")
 rep("(def! not (fn* (a) (if a false true)))");
 rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))");
 rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))");
-rep("(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))");
+rep("(def! *gensym-counter* (atom 0))");
+rep("(def! gensym (fn* [] (symbol (str \"G__\" (swap! *gensym-counter* (fn* [x] (+ 1 x)))))))");
+rep("(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) (let* (condvar (gensym)) `(let* (~condvar ~(first xs)) (if ~condvar ~condvar (or ~@(rest xs)))))))))");
 
 if (typeof process !== 'undefined' && process.argv.length > 2) {
     repl_env.set(types._symbol('*ARGV*'), process.argv.slice(3));
