@@ -2,8 +2,8 @@
 ! See http://factorcode.org/license.txt for BSD license.
 USING: accessors arrays assocs combinators
 combinators.short-circuit command-line continuations fry
-grouping hashtables io kernel lists locals mal.core mal.env
-mal.printer mal.reader mal.types math namespaces quotations
+grouping hashtables io kernel lists locals lib.core lib.env
+lib.printer lib.reader lib.types math namespaces quotations
 readline sequences splitting ;
 IN: step8_macros
 
@@ -87,7 +87,7 @@ M: callable apply call( x -- y ) f ;
 : READ ( str -- maltype ) read-str ;
 
 : EVAL ( maltype env -- maltype )
-    over array? [
+    over { [ array? ] [ empty? not ] } 1&& [
         [ macro-expand ] keep over array? [
             over first dup malsymbol? [ name>> ] when {
                 { "def!" [ [ rest first2 ] dip eval-def! f ] }
@@ -102,11 +102,13 @@ M: callable apply call( x -- y ) f ;
                 [ drop '[ _ EVAL ] map unclip apply ]
             } case [ EVAL ] when*
         ] [
-            drop
+            eval-ast
         ] if
     ] [
         eval-ast
     ] if ;
+
+[ apply [ EVAL ] when* ] mal-apply set-global
 
 : PRINT ( maltype -- str ) pr-str ;
 

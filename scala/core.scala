@@ -19,11 +19,17 @@ object core {
 
   def keyword_Q(a: List[Any]) = {
     a(0) match {
-      case s: String => s(0) == '\u029e'
+      case s: String => s.length != 0 && s(0) == '\u029e'
       case _ => false
     }
   }
 
+  def string_Q(a: List[Any]) = {
+    a(0) match {
+      case s: String => s.length == 0 || s(0) != '\u029e'
+      case _ => false
+    }
+  }
 
   // number functions
   def _bool_op(a: List[Any], op: (Long, Long) => Boolean) = {
@@ -83,13 +89,18 @@ object core {
   }
 
   def first(a: List[Any]): Any = {
-    val lst = a(0).asInstanceOf[MalList].value
-    if (lst.length > 0) lst(0) else null
+    a(0) match {
+      case null => null
+      case ml: MalList => {
+        val lst = ml.value
+        if (lst.length > 0) lst(0) else null
+      }
+    }
   }
 
   def rest(a: List[Any]): Any = {
     a(0) match {
-      case null => true
+      case null => _list()
       case ml: MalList => _list(ml.drop(1).value:_*)
     }
   }
@@ -105,17 +116,6 @@ object core {
     a(0) match {
       case null => 0
       case ml: MalList => ml.value.length.asInstanceOf[Long]
-    }
-  }
-
-  def conj(a: List[Any]): Any = {
-    a(0) match {
-      case mv: MalVector => {
-        _vector(mv.value ++ a.slice(1,a.length):_*)
-      }
-      case ml: MalList => {
-        _list(a.slice(1,a.length).reverse ++ ml.value:_*)
-      }
     }
   }
 
@@ -137,6 +137,33 @@ object core {
         _list(res.value:_*)
       }
       case _ => throw new Exception("invalid map call")
+    }
+  }
+
+  def conj(a: List[Any]): Any = {
+    a(0) match {
+      case mv: MalVector => {
+        _vector(mv.value ++ a.slice(1,a.length):_*)
+      }
+      case ml: MalList => {
+        _list(a.slice(1,a.length).reverse ++ ml.value:_*)
+      }
+    }
+  }
+
+  def seq(a: List[Any]): Any = {
+    a(0) match {
+      case mv: MalVector => {
+        if (mv.value.length == 0) null else _list(mv.value:_*)
+      }
+      case ml: MalList => {
+        if (ml.value.length == 0) null else ml
+      }
+      case ms: String => {
+        if (ms.length == 0) null else _list(ms.split("(?!^)"):_*)
+      }
+      case null => null
+      case _ => throw new Exception("seq: called on non-sequence")
     }
   }
 
@@ -205,6 +232,7 @@ object core {
     "nil?" -> ((a: List[Any]) => a(0) == null),
     "true?" -> ((a: List[Any]) => a(0) == true),
     "false?" -> ((a: List[Any]) => a(0) == false),
+    "string?" -> string_Q _,
     "symbol" -> ((a: List[Any]) => Symbol(a(0).asInstanceOf[String])),
     "symbol?" -> ((a: List[Any]) => a(0).isInstanceOf[Symbol]),
     "keyword" -> keyword _,
@@ -249,9 +277,11 @@ object core {
     "rest" -> rest _,
     "empty?" -> empty_Q _,
     "count" -> count _,
-    "conj" -> conj _,
     "apply" -> apply _,
     "map" -> do_map _,
+
+    "conj" -> conj _,
+    "seq" -> seq _,
 
     "with-meta" -> with_meta _,
     "meta" -> meta _,

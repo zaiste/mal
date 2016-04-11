@@ -135,6 +135,7 @@ module REPL
     and eval env = function
         | List(_, _) as node ->
             match macroExpand env node with
+            | List(_, []) as emptyList -> emptyList
             | List(_, Symbol("def!")::rest) -> defBangForm env rest
             | List(_, Symbol("defmacro!")::rest) -> defMacroForm env rest
             | List(_, Symbol("macroexpand")::rest) -> macroExpandForm env rest
@@ -155,7 +156,7 @@ module REPL
                     let inner = Env.makeNew outer binds rest
                     body |> eval inner
                 | _ -> raise <| Error.errExpectedX "func"
-            | node -> node
+            | node -> node |> eval_ast env
         | node -> node |> eval_ast env
 
     let READ input =
@@ -223,8 +224,10 @@ module REPL
             (def! *host-language* "fsharp")
             (def! not (fn* (a) (if a false true)))
             (def! load-file (fn* (f) (eval (read-string (slurp f)))))
-            (defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_ ~(first xs)) (if or_ or_ (or ~@(rest xs))))))))
             (defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw "odd number of forms to cond")) (cons 'cond (rest (rest xs)))))))
+            (def! *gensym-counter* (atom 0))
+            (def! gensym (fn* [] (symbol (str "G__" (swap! *gensym-counter* (fn* [x] (+ 1 x)))))))
+            (defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) (let* (condvar (gensym)) `(let* (~condvar ~(first xs)) (if ~condvar ~condvar (or ~@(rest xs)))))))))
             """ |> Seq.iter ignore
 
         env
@@ -241,6 +244,7 @@ module REPL
             |> REP env
             0
         | _ ->
+            RE env "(println (str \"Mal [\" *host-language* \"]\"))" |> Seq.iter ignore
             let rec loop () =
                 match Readline.read "user> " mode with
                 | null -> 0

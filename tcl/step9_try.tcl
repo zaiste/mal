@@ -35,7 +35,7 @@ proc is_macro_call {ast env} {
         return 0
     }
     set a0 [lindex [obj_val $ast] 0]
-    if {![symbol_q $a0]} {
+    if {$a0 == "" || ![symbol_q $a0]} {
         return 0
     }
     set varname [obj_val $a0]
@@ -102,10 +102,13 @@ proc EVAL {ast env} {
 
         set ast [macroexpand $ast $env]
         if {![list_q $ast]} {
-            return $ast
+            return [eval_ast $ast $env]
         }
 
         lassign [obj_val $ast] a0 a1 a2 a3
+        if {$a0 == ""} {
+            return $ast
+        }
         switch [obj_val $a0] {
             "def!" {
                 set varname [obj_val $a1]

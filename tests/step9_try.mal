@@ -58,8 +58,10 @@
 ;=>9
 (apply prn (list 1 2 "3" (list)))
 ; 1 2 "3" ()
+;=>nil
 (apply prn 1 2 (list "3" (list)))
 ; 1 2 "3" ()
+;=>nil
 
 ;; Testing apply function with user functions
 (apply (fn* (a b) (+ a b)) (list 2 3))
@@ -95,6 +97,8 @@
 (keyword? 'abc)
 ;=>false
 (keyword? "abc")
+;=>false
+(keyword? "")
 ;=>false
 (keyword? (keyword "abc"))
 ;=>true
@@ -268,6 +272,28 @@
 (dissoc {:cde nil :fgh 456} :cde)
 ;=>{:fgh 456}
 
+;; Testing equality of hash-maps
+(= {} {})
+;=>true
+(= {:a 11 :b 22} (hash-map :b 22 :a 11))
+;=>true
+(= {:a 11 :b [22 33]} (hash-map :b [22 33] :a 11))
+;=>true
+(= {:a 11 :b {:c 33}} (hash-map :b {:c 33} :a 11))
+;=>true
+(= {:a 11 :b 22} (hash-map :b 23 :a 11))
+;=>false
+(= {:a 11 :b 22} (hash-map :a 11))
+;=>false
+(= {:a [11 22]} {:a (list 11 22)})
+;=>true
+(= {:a 11 :b 22} (list :a 11 :b 22))
+;=>false
+(= {} [])
+;=>false
+(= [] {})
+;=>false
+
 ;;
 ;; Additional str and pr-str tests
 
@@ -291,26 +317,12 @@
 (or (= p "{:abc \"val1\" :def \"val2\"}") (= p "{:def \"val2\" :abc \"val1\"}"))
 ;=>true
 
-;; ------- Optional Functionality --------------
-;; ------- (Not needed for self-hosting) -------
-;>>> soft=True
+;;
+;; Test extra function arguments as Mal List (bypassing TCO with apply)
+(apply (fn* (& more) (list? more)) [1 2 3])
+;=>true
+(apply (fn* (& more) (list? more)) [])
+;=>true
+(apply (fn* (a & more) (list? more)) [1])
+;=>true
 
-;; Testing equality of hash-maps
-(= {} {})
-;=>true
-(= {:a 11 :b 22} (hash-map :b 22 :a 11))
-;=>true
-(= {:a 11 :b [22 33]} (hash-map :b [22 33] :a 11))
-;=>true
-(= {:a 11 :b {:c 33}} (hash-map :b {:c 33} :a 11))
-;=>true
-(= {:a 11 :b 22} (hash-map :b 23 :a 11))
-;=>false
-(= {:a 11 :b 22} (hash-map :a 11))
-;=>false
-(= {:a 11 :b 22} (list :a 11 :b 22))
-;=>false
-(= {} [])
-;=>false
-(= [] {})
-;=>false

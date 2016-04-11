@@ -35,6 +35,10 @@ private func fn_falseQ(obj: MalVal) throws -> Bool {
     return is_false(obj)
 }
 
+private func fn_stringQ(obj: MalVal) throws -> Bool {
+    return is_string(obj)
+}
+
 private func fn_symbol(s: String) throws -> MalVal {
     return make_symbol(s)
 }
@@ -254,8 +258,14 @@ private func fn_first(arg: MalVal) throws -> MalVal {
     try throw_error("expected list, got \(arg)")
 }
 
-private func fn_rest(list: MalSequence) throws -> MalVal {
-    return list.rest()
+private func fn_rest(arg: MalVal) throws -> MalVal {
+    if is_nil(arg) {
+        return make_list()
+    }
+    if let seq = as_sequenceQ(arg) {
+        return seq.rest()
+    }
+    try throw_error("expected sequence, got \(arg)")
 }
 
 private func fn_emptyQ(obj: MalVal) throws -> Bool {
@@ -312,6 +322,22 @@ private func fn_map(fn: MalFunction, list: MalSequence) throws -> MalVal {
 
 private func fn_conj(first: MalSequence, rest: MalVarArgs) throws -> MalVal {
     return try first.conj(rest.value)
+}
+
+private func fn_seq(seq: MalVal) throws -> MalVal {
+    if let list = as_listQ(seq) {
+        return list.count > 0 ? list : make_nil()
+    } else if let vector = as_vectorQ(seq) {
+        return vector.count > 0 ? make_list(vector) : make_nil()
+    } else if let str = as_stringQ(seq) {
+        if str.string.characters.count == 0 { return make_nil() }
+        return make_list(str.string.characters.map { make_string(String($0)) })
+    } else if is_nil(seq) {
+        return make_nil()
+    } else {
+        try throw_error("seq: called with non-sequence")
+    }
+    return seq
 }
 
 private func fn_meta(obj: MalVal) throws -> MalVal {
@@ -657,6 +683,7 @@ let ns: [String: MalBuiltin.Signature] = [
     "nil?":         { try unwrap_args($0, forFunction: fn_nilQ) },
     "true?":        { try unwrap_args($0, forFunction: fn_trueQ) },
     "false?":       { try unwrap_args($0, forFunction: fn_falseQ) },
+    "string?":      { try unwrap_args($0, forFunction: fn_stringQ) },
     "symbol":       { try unwrap_args($0, forFunction: fn_symbol) },
     "symbol?":      { try unwrap_args($0, forFunction: fn_symbolQ) },
     "keyword":      { try unwrap_args($0, forFunction: fn_keyword) },
@@ -703,7 +730,9 @@ let ns: [String: MalBuiltin.Signature] = [
     "count":        { try unwrap_args($0, forFunction: fn_count) },
     "apply":        { try unwrap_args($0, forFunction: fn_apply) },
     "map":          { try unwrap_args($0, forFunction: fn_map) },
+
     "conj":         { try unwrap_args($0, forFunction: fn_conj) },
+    "seq":          { try unwrap_args($0, forFunction: fn_seq) },
 
     "meta":         { try unwrap_args($0, forFunction: fn_meta) },
     "with-meta":    { try unwrap_args($0, forFunction: fn_withmeta) },

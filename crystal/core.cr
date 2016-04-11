@@ -172,6 +172,11 @@ def self.symbol(args)
   Mal::Symbol.new head
 end
 
+def self.string?(args)
+  head = args.first.unwrap
+  head.is_a?(String) && (head.empty? || head[0] != '\u029e')
+end
+
 def self.keyword(args)
   head = args.first.unwrap
   eval_error "1st argument of symbol function must be string" unless head.is_a? String
@@ -337,6 +342,25 @@ def self.conj(args)
   end
 end
 
+def self.seq(args)
+  obj = args.first.unwrap
+  case obj
+  when nil
+    nil
+  when Mal::List
+    return nil if obj.empty?
+    obj
+  when Mal::Vector
+    return nil if obj.empty?
+    obj.to_mal
+  when String
+    return nil if obj.empty?
+    obj.split("").each_with_object(Mal::List.new){|e,l| l << Mal::Type.new(e)}
+  else
+    eval_error "argument of seq must be list or vector or string or nil"
+  end
+end
+
 def self.time_ms(args)
   Time.now.epoch_ms.to_i32
 end
@@ -352,62 +376,64 @@ macro rel_op(op)
 end
 
 NS = {
-  "+"           => calc_op(:+)
-  "-"           => calc_op(:-)
-  "*"           => calc_op(:*)
-  "/"           => calc_op(:/)
-  "list"        => func(:list)
-  "list?"       => func(:list?)
-  "empty?"      => func(:empty?)
-  "count"       => func(:count)
-  "="           => rel_op(:==)
-  "<"           => rel_op(:<)
-  ">"           => rel_op(:>)
-  "<="          => rel_op(:<=)
-  ">="          => rel_op(:>=)
-  "pr-str"      => func(:pr_str_)
-  "str"         => func(:str)
-  "prn"         => func(:prn)
-  "println"     => func(:println)
-  "read-string" => func(:read_string)
-  "slurp"       => func(:slurp)
-  "cons"        => func(:cons)
-  "concat"      => func(:concat)
-  "nth"         => func(:nth)
-  "first"       => func(:first)
-  "rest"        => func(:rest)
-  "throw"       => -> (args : Array(Mal::Type)) { raise Mal::RuntimeException.new args[0] }
-  "apply"       => func(:apply)
-  "map"         => func(:map)
-  "nil?"        => func(:nil?)
-  "true?"       => func(:true?)
-  "false?"      => func(:false?)
-  "symbol?"     => func(:symbol?)
-  "symbol"      => func(:symbol)
-  "keyword"     => func(:keyword)
-  "keyword?"    => func(:keyword?)
-  "vector"      => func(:vector)
-  "vector?"     => func(:vector?)
-  "hash-map"    => func(:hash_map)
-  "map?"        => func(:map?)
-  "assoc"       => func(:assoc)
-  "dissoc"      => func(:dissoc)
-  "get"         => func(:get)
-  "contains?"   => func(:contains?)
-  "keys"        => func(:keys)
-  "vals"        => func(:vals)
-  "sequential?" => func(:sequential?)
-  "readline"    => func(:readline)
-  "meta"        => func(:meta)
-  "with-meta"   => func(:with_meta)
-  "atom"        => func(:atom)
-  "atom?"       => func(:atom?)
-  "deref"       => func(:deref)
-  "deref"       => func(:deref)
-  "reset!"      => func(:reset!)
-  "swap!"       => func(:swap!)
-  "conj"        => func(:conj)
-  "time-ms"     => func(:time_ms)
+  "+"           => calc_op(:+),
+  "-"           => calc_op(:-),
+  "*"           => calc_op(:*),
+  "/"           => calc_op(:/),
+  "list"        => func(:list),
+  "list?"       => func(:list?),
+  "empty?"      => func(:empty?),
+  "count"       => func(:count),
+  "="           => rel_op(:==),
+  "<"           => rel_op(:<),
+  ">"           => rel_op(:>),
+  "<="          => rel_op(:<=),
+  ">="          => rel_op(:>=),
+  "pr-str"      => func(:pr_str_),
+  "str"         => func(:str),
+  "prn"         => func(:prn),
+  "println"     => func(:println),
+  "read-string" => func(:read_string),
+  "slurp"       => func(:slurp),
+  "cons"        => func(:cons),
+  "concat"      => func(:concat),
+  "nth"         => func(:nth),
+  "first"       => func(:first),
+  "rest"        => func(:rest),
+  "throw"       => -> (args : Array(Mal::Type)) { raise Mal::RuntimeException.new args[0] },
+  "apply"       => func(:apply),
+  "map"         => func(:map),
+  "nil?"        => func(:nil?),
+  "true?"       => func(:true?),
+  "false?"      => func(:false?),
+  "symbol?"     => func(:symbol?),
+  "symbol"      => func(:symbol),
+  "string?"     => func(:string?),
+  "keyword"     => func(:keyword),
+  "keyword?"    => func(:keyword?),
+  "vector"      => func(:vector),
+  "vector?"     => func(:vector?),
+  "hash-map"    => func(:hash_map),
+  "map?"        => func(:map?),
+  "assoc"       => func(:assoc),
+  "dissoc"      => func(:dissoc),
+  "get"         => func(:get),
+  "contains?"   => func(:contains?),
+  "keys"        => func(:keys),
+  "vals"        => func(:vals),
+  "sequential?" => func(:sequential?),
+  "readline"    => func(:readline),
+  "meta"        => func(:meta),
+  "with-meta"   => func(:with_meta),
+  "atom"        => func(:atom),
+  "atom?"       => func(:atom?),
+  "deref"       => func(:deref),
+  "deref"       => func(:deref),
+  "reset!"      => func(:reset!),
+  "swap!"       => func(:swap!),
+  "conj"        => func(:conj),
+  "seq"         => func(:seq),
+  "time-ms"     => func(:time_ms),
 } of String => Mal::Func
 
 end

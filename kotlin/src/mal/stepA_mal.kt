@@ -12,6 +12,7 @@ fun eval(_ast: MalType, _env: Env): MalType {
         ast = macroexpand(ast, env)
 
         if (ast is MalList) {
+            if (ast.count() == 0) return ast
             when ((ast.first() as? MalSymbol)?.value) {
                 "def!" -> return env.set(ast.nth(1) as MalSymbol, eval(ast.nth(2), env))
                 "let*" -> {
@@ -115,7 +116,9 @@ private fun quasiquote(ast: MalType): MalType {
 }
 
 private fun is_macro_call(ast: MalType, env: Env): Boolean {
-    val symbol = (ast as? MalList)?.first() as? MalSymbol ?: return false
+    val ast_list = ast as? MalList ?: return false
+    if (ast_list.count() == 0) return false
+    val symbol = ast_list.first() as? MalSymbol ?: return false
     val function = env.find(symbol) as? MalFunction ?: return false
 
     return function.is_macro
@@ -168,13 +171,16 @@ fun main(args: Array<String>) {
     rep("(def! not (fn* (a) (if a false true)))", repl_env)
     rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))", repl_env)
     rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))", repl_env)
-    rep("(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))", repl_env)
+    rep("(def! *gensym-counter* (atom 0))", repl_env)
+    rep("(def! gensym (fn* [] (symbol (str \"G__\" (swap! *gensym-counter* (fn* [x] (+ 1 x)))))))", repl_env)
+    rep("(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) (let* (condvar (gensym)) `(let* (~condvar ~(first xs)) (if ~condvar ~condvar (or ~@(rest xs)))))))))", repl_env)
 
     if (args.any()) {
         rep("(load-file \"${args[0]}\")", repl_env)
         return
     }
 
+    rep("(println (str \"Mal [\" *host-language* \"]\"))", repl_env)
     while (true) {
         val input = readline("user> ")
         try {

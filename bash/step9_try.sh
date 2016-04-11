@@ -118,7 +118,12 @@ EVAL () {
     # apply list
     MACROEXPAND "${ast}" "${env}"
     ast="${r}"
-    if ! _list? "${ast}"; then return; fi
+    if ! _list? "${ast}"; then
+        EVAL_AST "${ast}" "${env}"
+        return
+    fi
+    _empty? "${ast}" && r="${ast}" && return
+
     _nth "${ast}" 0; local a0="${r}"
     _nth "${ast}" 1; local a1="${r}"
     _nth "${ast}" 2; local a2="${r}"

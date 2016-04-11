@@ -23,7 +23,7 @@
 
 (define *toplevel*
   (receive (b e) (unzip2 core.ns)
-    (let ((env (make-Env #:binds b #:exprs (map (lambda (x) (make-func x)) e))))
+    (let ((env (make-Env #:binds b #:exprs (map make-func e))))
       (for-each (lambda (f)
                   (callable-unbox-set! ((env 'get) f) #f))
                 *unbox-exception*)
@@ -69,6 +69,7 @@
 
 (define (is_macro_call ast env)
   (and (list? ast)
+       (> (length ast) 0)
        (and=> (env-check (car ast) env) is-macro?)))
 
 (define (_macroexpand ast env)
@@ -107,6 +108,7 @@
     (let ((ast (_macroexpand ast env)))
       (match ast
         ((? non-list?) (eval_ast ast env))
+        (() ast)
         (('defmacro! k v)
          (let ((c (EVAL v env)))
            (callable-is_macro-set! c #t)
@@ -193,7 +195,9 @@
 ((*toplevel* 'set) '*ARGV* '())
 (EVAL-string "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))")
 (EVAL-string "(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))")
-(EVAL-string "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))")
+(EVAL-string "(def! *gensym-counter* (atom 0))")
+(EVAL-string "(def! gensym (fn* [] (symbol (str \"G__\" (swap! *gensym-counter* (fn* [x] (+ 1 x)))))))")
+(EVAL-string "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) (let* (condvar (gensym)) `(let* (~condvar ~(first xs)) (if ~condvar ~condvar (or ~@(rest xs)))))))))")
 (EVAL-string "(def! *host-language* \"guile\")")
 
 (let ((args (cdr (command-line))))

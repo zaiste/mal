@@ -64,7 +64,8 @@ const EVAL = (ast, env) => {
     if (!_list_Q(ast)) { return eval_ast(ast, env) }
 
     ast = macroexpand(ast, env)
-    if (!_list_Q(ast)) { return ast; }
+    if (!_list_Q(ast)) { return eval_ast(ast, env) }
+    if (ast.length === 0) { return ast }
 
     const [a0, a1, a2, a3] = ast
     const a0sym = _symbol_Q(a0) ? Symbol.keyFor(a0) : Symbol(':default')
@@ -148,7 +149,7 @@ REP('(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list \'if (first xs) (if 
 REP('(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))')
 
 if (process.argv.length > 2) { 
-    env_set(repl_env, '*ARGV*', process.argv.slice(3))
+    env_set(repl_env, _symbol('*ARGV*'), process.argv.slice(3))
     REP(`(load-file "${process.argv[2]}")`)
     process.exit(0)
 }

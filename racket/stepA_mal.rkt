@@ -29,6 +29,7 @@
 
 (define (macro? ast env)
   (and (list? ast)
+       (not (empty? ast))
        (symbol? (first ast))
        (not (equal? null (send env find (first ast))))
        (let ([fn (send env get (first ast))])
@@ -54,8 +55,8 @@
     (eval-ast ast env)
 
     (let ([ast (macroexpand ast env)])
-      (if (not (list? ast))
-        ast
+      (if (or (not (list? ast)) (empty? ast))
+        (eval-ast ast env)
         (let ([a0 (_nth ast 0)])
           (cond
             [(eq? 'def! a0)
@@ -141,7 +142,9 @@
 (rep "(def! not (fn* (a) (if a false true)))")
 (rep "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))")
 (rep "(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))")
-(rep "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))")
+(rep "(def! *gensym-counter* (atom 0))")
+(rep "(def! gensym (fn* [] (symbol (str \"G__\" (swap! *gensym-counter* (fn* [x] (+ 1 x)))))))")
+(rep "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) (let* (condvar (gensym)) `(let* (~condvar ~(first xs)) (if ~condvar ~condvar (or ~@(rest xs)))))))))")
 
 )
 
@@ -157,7 +160,9 @@
       (repl-loop))))
 (let ([args (current-command-line-arguments)])
   (if (> (vector-length args) 0)
-    (for () (rep (string-append "(load-file \"" (vector-ref args 0) "\")")))
+    (begin
+      (send repl-env set '*ARGV* (vector->list (vector-drop args 1)))
+      (for () (rep (string-append "(load-file \"" (vector-ref args 0) "\")"))))
     (begin
       (rep "(println (str \"Mal [\" *host-language* \"]\"))")
       (repl-loop))))

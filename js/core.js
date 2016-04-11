@@ -100,9 +100,9 @@ function nth(lst, idx) {
     else                  { throw new Error("nth: index out of range"); }
 }
 
-function first(lst) { return lst[0]; }
+function first(lst) { return (lst === null) ? null : lst[0]; }
 
-function rest(lst) { return lst.slice(1); }
+function rest(lst) { return (lst == null) ? [] : lst.slice(1); }
 
 function empty_Q(lst) { return lst.length === 0; }
 
@@ -121,6 +121,21 @@ function conj(lst) {
         return v;
     }
 }
+
+function seq(obj) {
+    if (types._list_Q(obj)) {
+        return obj.length > 0 ? obj : null;
+    } else if (types._vector_Q(obj)) {
+        return obj.length > 0 ? Array.prototype.slice.call(obj, 0): null;
+    } else if (types._string_Q(obj)) {
+        return obj.length > 0 ? obj.split('') : null;
+    } else if (obj === null) {
+        return null;
+    } else {
+        throw new Error("seq: called on non-sequence");
+    }
+}
+
 
 function apply(f) {
     var args = Array.prototype.slice.call(arguments, 1);
@@ -167,6 +182,7 @@ var ns = {'type': types._obj_type,
           'nil?': types._nil_Q,
           'true?': types._true_Q,
           'false?': types._false_Q,
+          'string?': types._string_Q,
           'symbol': types._symbol,
           'symbol?': types._symbol_Q,
           'keyword': types._keyword,
@@ -212,7 +228,9 @@ var ns = {'type': types._obj_type,
           'count': count,
           'apply': apply,
           'map': map,
+
           'conj': conj,
+          'seq': seq,
 
           'with-meta': with_meta,
           'meta': meta,

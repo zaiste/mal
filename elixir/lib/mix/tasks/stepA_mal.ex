@@ -2,6 +2,11 @@ defmodule Mix.Tasks.StepAMal do
   import Mal.Types
   alias Mal.Function
 
+  # for escript execution
+  def main(args) do
+    run(args)
+  end
+
   def run(args) do
     env = Mal.Env.new()
     Mal.Env.merge(env, Mal.Core.namespace)
@@ -45,6 +50,14 @@ defmodule Mix.Tasks.StepAMal do
               (cons 'cond (rest (rest xs)))))))"
       """, env)
 
+    # gensym
+    read_eval_print("(def! *gensym-counter* (atom 0))", env)
+    read_eval_print("""
+      (def! gensym
+        (fn* []
+          (symbol (str \"G__\" (swap! *gensym-counter* (fn* [x] (+ 1 x)))))))
+      """, env)
+
     # or:
     read_eval_print("""
       (defmacro! or
@@ -53,7 +66,9 @@ defmodule Mix.Tasks.StepAMal do
             nil
             (if (= 1 (count xs))
               (first xs)
-              `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))
+              (let* (condvar (gensym))
+                `(let* (~condvar ~(first xs))
+                  (if ~condvar ~condvar (or ~@(rest xs)))))))))
       """, env)
 
     Mal.Env.set(env, "eval", %Function{value: fn [ast] ->
@@ -163,10 +178,11 @@ defmodule Mix.Tasks.StepAMal do
     end
   end
 
+  defp eval({:list, [], _} = empty_ast, env), do: empty_ast
   defp eval({:list, _list, _meta} = ast, env) do
     case macroexpand(ast, env) do
       {:list, list, meta} -> eval_list(list, env, meta)
-      result -> result
+      result -> eval_ast(result, env)
     end
   end
   defp eval(ast, env), do: eval_ast(ast, env)

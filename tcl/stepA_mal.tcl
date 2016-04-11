@@ -35,7 +35,7 @@ proc is_macro_call {ast env} {
         return 0
     }
     set a0 [lindex [obj_val $ast] 0]
-    if {![symbol_q $a0]} {
+    if {$a0 == "" || ![symbol_q $a0]} {
         return 0
     }
     set varname [obj_val $a0]
@@ -102,10 +102,13 @@ proc EVAL {ast env} {
 
         set ast [macroexpand $ast $env]
         if {![list_q $ast]} {
-            return $ast
+            return [eval_ast $ast $env]
         }
 
         lassign [obj_val $ast] a0 a1 a2 a3
+        if {$a0 == ""} {
+            return $ast
+        }
         switch [obj_val $a0] {
             "def!" {
                 set varname [obj_val $a1]
@@ -243,7 +246,9 @@ RE "(def! *host-language* \"tcl\")" $repl_env
 RE "(def! not (fn* (a) (if a false true)))" $repl_env
 RE "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))" $repl_env
 RE "(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))" $repl_env
-RE "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))" $repl_env
+RE "(def! *gensym-counter* (atom 0))" $repl_env
+RE "(def! gensym (fn* \[\] (symbol (str \"G__\" (swap! *gensym-counter* (fn* \[x\] (+ 1 x)))))))" $repl_env
+RE "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) (let* (condvar (gensym)) `(let* (~condvar ~(first xs)) (if ~condvar ~condvar (or ~@(rest xs)))))))))" $repl_env
 
 fconfigure stdout -translation binary
 

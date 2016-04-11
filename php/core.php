@@ -105,7 +105,7 @@ function nth($seq, $idx) {
 }
 
 function first($seq) {
-    if (count($seq) === 0) {
+    if ($seq === NULL || count($seq) === 0) {
         return NULL;
     } else {
         return $seq[0];
@@ -113,14 +113,31 @@ function first($seq) {
 }
 
 function rest($seq) {
-    $l = new ListClass();
-    $l->exchangeArray(array_slice($seq->getArrayCopy(), 1));
-    return $l;
+    if ($seq === NULL) {
+        return new ListClass();
+    } else {
+        $l = new ListClass();
+        $l->exchangeArray(array_slice($seq->getArrayCopy(), 1));
+        return $l;
+    }
 }
 
 function empty_Q($seq) { return $seq->count() === 0; }
 
 function scount($seq) { return ($seq === NULL ? 0 : $seq->count()); }
+
+function apply($f) {
+    $args = array_slice(func_get_args(), 1);
+    $last_arg = array_pop($args)->getArrayCopy();
+    return $f->apply(array_merge($args, $last_arg));
+}
+
+function map($f, $seq) {
+    $l = new ListClass();
+    # @ to surpress warning if $f throws an exception
+    @$l->exchangeArray(array_map($f, $seq->getArrayCopy()));
+    return $l;
+}
 
 function conj($src) {
     $args = array_slice(func_get_args(), 1);
@@ -136,18 +153,30 @@ function conj($src) {
     return $s;
 }
 
-function apply($f) {
-    $args = array_slice(func_get_args(), 1);
-    $last_arg = array_pop($args)->getArrayCopy();
-    return $f->apply(array_merge($args, $last_arg));
+function seq($src) {
+    if (_list_Q($src)) {
+        if (count($src) == 0) { return NULL; }
+        return $src;
+    } elseif (_vector_Q($src)) {
+        if (count($src) == 0) { return NULL; }
+        $tmp = $src->getArrayCopy();
+        $s = new ListClass();
+        $s->exchangeArray($tmp);
+        return $s;
+    } elseif (_string_Q($src)) {
+        if (strlen($src) == 0) { return NULL; }
+        $tmp = str_split($src);
+        $s = new ListClass();
+        $s->exchangeArray($tmp);
+        return $s;
+    } elseif (_nil_Q($src)) {
+        return NULL;
+    } else {
+        throw new Exception("seq: called on non-sequence");
+    }
+    return $s;
 }
 
-function map($f, $seq) {
-    $l = new ListClass();
-    # @ to surpress warning if $f throws an exception
-    @$l->exchangeArray(array_map($f, $seq->getArrayCopy()));
-    return $l;
-}
 
 
 // Metadata functions
@@ -224,9 +253,11 @@ $core_ns = array(
     'rest'=>   function ($a) { return rest($a); },
     'empty?'=> function ($a) { return empty_Q($a); },
     'count'=>  function ($a) { return scount($a); },
-    'conj'=>   function () { return call_user_func_array('conj', func_get_args()); },
     'apply'=>  function () { return call_user_func_array('apply', func_get_args()); },
     'map'=>    function ($a, $b) { return map($a, $b); },
+
+    'conj'=>   function () { return call_user_func_array('conj', func_get_args()); },
+    'seq'=>    function ($a) { return seq($a); },
 
     'with-meta'=> function ($a, $b) { return with_meta($a, $b); },
     'meta'=>   function ($a) { return meta($a); },

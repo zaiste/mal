@@ -71,7 +71,12 @@ def EVAL(ast, env)
 
     # apply list
     ast = macroexpand(ast, env)
-    return ast if not ast.is_a? List
+    if not ast.is_a? List
+        return eval_ast(ast, env)
+    end
+    if ast.empty?
+        return ast
+    end
 
     a0,a1,a2,a3 = ast
     case a0
@@ -122,7 +127,7 @@ def EVAL(ast, env)
         end
     when :"fn*"
         return Function.new(a2, env, a1) {|*args|
-            EVAL(a2, Env.new(env, a1, args))
+            EVAL(a2, Env.new(env, a1, List.new(args)))
         }
     else
         el = eval_ast(ast, env)

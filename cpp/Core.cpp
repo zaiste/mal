@@ -65,6 +65,7 @@ BUILTIN_ISA("keyword?",     malKeyword);
 BUILTIN_ISA("list?",        malList);
 BUILTIN_ISA("map?",         malHash);
 BUILTIN_ISA("sequential?",  malSequence);
+BUILTIN_ISA("string?",      malString);
 BUILTIN_ISA("symbol?",      malSymbol);
 BUILTIN_ISA("vector?",      malVector);
 
@@ -233,6 +234,9 @@ BUILTIN("eval")
 BUILTIN("first")
 {
     CHECK_ARGS_IS(1);
+    if (*argsBegin == mal::nilValue()) {
+        return mal::nilValue();
+    }
     ARG(malSequence, seq);
     return seq->first();
 }
@@ -329,9 +333,39 @@ BUILTIN("reset!")
 BUILTIN("rest")
 {
     CHECK_ARGS_IS(1);
+    if (*argsBegin == mal::nilValue()) {
+        return mal::list(new malValueVec(0));
+    }
     ARG(malSequence, seq);
     return seq->rest();
 }
+
+BUILTIN("seq")
+{
+    CHECK_ARGS_IS(1);
+    malValuePtr arg = *argsBegin++;
+    if (arg == mal::nilValue()) {
+        return mal::nilValue();
+    }
+    if (const malSequence* seq = DYNAMIC_CAST(malSequence, arg)) {
+        return seq->isEmpty() ? mal::nilValue()
+                              : mal::list(seq->begin(), seq->end());
+    }
+    if (const malString* strVal = DYNAMIC_CAST(malString, arg)) {
+        const String str = strVal->value();
+        int length = str.length();
+        if (length == 0)
+            return mal::nilValue();
+
+        malValueVec* items = new malValueVec(length);
+        for (int i = 0; i < length; i++) {
+            (*items)[i] = mal::string(str.substr(i, 1));
+        }
+        return mal::list(items);
+    }
+    MAL_FAIL("%s is not a string or sequence", arg->print(true).c_str());
+}
+
 
 BUILTIN("slurp")
 {

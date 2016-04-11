@@ -5,7 +5,8 @@
               [reader]
               [printer]
               [env]
-              [core]))
+              [core])
+    (:gen-class))
 
 ;; read
 (defn READ [& [strng]]
@@ -47,11 +48,11 @@
 (defn eval-ast [ast env]
   (cond
     (symbol? ast) (env/env-get env ast)
-   
+
     (seq? ast)    (doall (map #(EVAL % env) ast))
 
     (vector? ast) (vec (doall (map #(EVAL % env) ast)))
-   
+
     (map? ast)    (apply hash-map (doall (map #(EVAL % env)
                                               (mapcat identity ast))))
 
@@ -63,40 +64,43 @@
     ;;(prn "EVAL" ast (keys @env)) (flush)
     (if (not (seq? ast))
       (eval-ast ast env)
-  
+
       ;; apply list
       (let [ast (macroexpand ast env)]
         (if (not (seq? ast))
-          ast
+          (eval-ast ast env)
 
           (let [[a0 a1 a2 a3] ast]
             (condp = a0
+              nil
+              ast
+
               'def!
               (env/env-set env a1 (EVAL a2 env))
-      
+
               'let*
               (let [let-env (env/env env)]
                 (doseq [[b e] (partition 2 a1)]
                   (env/env-set let-env b (EVAL e let-env)))
                 (recur a2 let-env))
-    
+
               'quote
               a1
-    
+
               'quasiquote
               (recur (quasiquote a1) env)
-    
+
               'defmacro!
               (let [func (with-meta (EVAL a2 env)
                                     {:ismacro true})]
                 (env/env-set env a1 func))
-    
+
               'macroexpand
               (macroexpand a1 env)
-      
+
               'clj*
               (eval (reader/read-string a1))
-      
+
               'try*
               (if (= 'catch* (nth a2 0))
                 (try
@@ -110,11 +114,11 @@
                                               [(nth a2 1)]
                                               [(.getMessage t)]))))
                 (EVAL a1 env))
-    
+
               'do
               (do (eval-ast (->> ast (drop-last) (drop 1)) env)
                   (recur (last ast) env))
-      
+
               'if
               (let [cond (EVAL a1 env)]
                 (if (or (= cond nil) (= cond false))
@@ -122,20 +126,20 @@
                     (recur a3 env)
                     nil)
                   (recur a2 env)))
-      
+
               'fn*
               (with-meta
                 (fn [& args]
-                  (EVAL a2 (env/env env a1 args)))
+                  (EVAL a2 (env/env env a1 (or args '()))))
                 {:expression a2
                  :environment env
                  :parameters a1})
-      
+
               ;; apply
               (let [el (eval-ast ast env)
-                       f (first el)
-                       args (rest el)
-                       {:keys [expression environment parameters]} (meta f)]
+                    f (first el)
+                    args (rest el)
+                    {:keys [expression environment parameters]} (meta f)]
                 (if expression
                   (recur expression (env/env environment parameters args))
                   (apply f args))))))))))
@@ -159,7 +163,9 @@
 (rep "(def! not (fn* [a] (if a false true)))")
 (rep "(def! load-file (fn* [f] (eval (read-string (str \"(do \" (slurp f) \")\")))))")
 (rep "(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))")
-(rep "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))")
+(rep "(def! *gensym-counter* (atom 0))")
+(rep "(def! gensym (fn* [] (symbol (str \"G__\" (swap! *gensym-counter* (fn* [x] (+ 1 x)))))))")
+(rep "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) (let* (condvar (gensym)) `(let* (~condvar ~(first xs)) (if ~condvar ~condvar (or ~@(rest xs)))))))))")
 
 ;; repl loop
 (defn repl-loop []

@@ -2,8 +2,8 @@
 ! See http://factorcode.org/license.txt for BSD license.
 USING: accessors arrays assocs combinators
 combinators.short-circuit command-line continuations fry
-grouping hashtables io kernel lists locals mal.core mal.env
-mal.printer mal.reader mal.types math namespaces quotations
+grouping hashtables io kernel lists locals lib.core lib.env
+lib.printer lib.reader lib.types math namespaces quotations
 readline sequences splitting strings ;
 IN: stepA_mal
 
@@ -94,7 +94,7 @@ M: callable apply call( x -- y ) f ;
 : READ ( str -- maltype ) read-str ;
 
 : EVAL ( maltype env -- maltype )
-    over array? [
+    over { [ array? ] [ empty? not ] } 1&& [
         [ macro-expand ] keep over array? [
             over first dup malsymbol? [ name>> ] when {
                 { "def!" [ [ rest first2 ] dip eval-def! f ] }
@@ -110,7 +110,7 @@ M: callable apply call( x -- y ) f ;
                 [ drop '[ _ EVAL ] map unclip apply ]
             } case [ EVAL ] when*
         ] [
-            drop
+            eval-ast
         ] if
     ] [
         eval-ast
@@ -147,7 +147,9 @@ command-line get dup empty? [ rest ] unless "*ARGV*" pick set-at
 (def! not (fn* (a) (if a false true)))
 (def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))
 (defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))
-(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))
+(def! *gensym-counter* (atom 0))
+(def! gensym (fn* [] (symbol (str \"G__\" (swap! *gensym-counter* (fn* [x] (+ 1 x)))))))
+(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) (let* (condvar (gensym)) `(let* (~condvar ~(first xs)) (if ~condvar ~condvar (or ~@(rest xs)))))))))
 " string-lines harvest [ READ repl-env get EVAL drop ] each
 
 MAIN: main

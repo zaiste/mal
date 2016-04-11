@@ -120,8 +120,8 @@ MalUserFn
 
     f-args-list MalList/start @ { f-args }
     f-args-list MalList/count @ ?dup 0= if else
-        \ pass nil for last arg, unless overridden below
-        1- cells f-args + @ mal-nil env env/set
+        \ pass empty list for last arg, unless overridden below
+        1- cells f-args + @ MalList new env env/set
     endif
     argc 0 ?do
         f-args i cells + @
@@ -171,8 +171,12 @@ drop
 
 MalList
   extend mal-eval { env list -- val }
-    env list MalList/start @ @ eval
-    env list rot eval-invoke ;;
+    list MalList/count @ 0= if
+        list
+    else
+        env list MalList/start @ @ eval
+        env list rot eval-invoke
+    endif ;;
 drop
 
 MalVector

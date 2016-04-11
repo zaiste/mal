@@ -8,7 +8,7 @@
 
 main([File|Args]) ->
     Env = init(),
-    env:set(Env, {symbol, "*ARGV*"}, {list, Args, nil}),
+    env:set(Env, {symbol, "*ARGV*"}, {list, [{string,Arg} || Arg <- Args], nil}),
     rep("(load-file \"" ++ File ++ "\")", Env);
 main([]) ->
     Env = init(),
@@ -50,7 +50,7 @@ eval(Value, Env) ->
         {list, _L1, _M1} ->
             case macroexpand(Value, Env) of
                 {list, _L2, _M2} = List -> eval_list(List, Env);
-                AST -> AST
+                AST -> eval_ast(AST, Env)
             end;
         _ -> eval_ast(Value, Env)
     end.

@@ -6,8 +6,9 @@
 
 Mal is a Clojure inspired Lisp interpreter.
 
-Mal is implemented in 44 different languages:
+Mal is implemented in 51 languages:
 
+* Ada
 * GNU awk
 * Bash shell
 * C
@@ -18,6 +19,7 @@ Mal is implemented in 44 different languages:
 * Crystal
 * D
 * Elixir
+* Emacs Lisp
 * Erlang
 * ES6 (ECMAScript 6 / ECMAScript 2015)
 * F#
@@ -27,6 +29,8 @@ Mal is implemented in 44 different languages:
 * Groovy
 * GNU Guile
 * Haskell
+* Haxe
+* Io
 * Java
 * JavaScript ([Online Demo](http://kanaka.github.io/mal))
 * Julia
@@ -37,6 +41,8 @@ Mal is implemented in 44 different languages:
 * MATLAB
 * [miniMAL](https://github.com/kanaka/miniMAL)
 * Nim
+* Object Pascal
+* Objective C
 * OCaml
 * Perl
 * PHP
@@ -49,6 +55,7 @@ Mal is implemented in 44 different languages:
 * Rust
 * Scala
 * Swift
+* Swift 3
 * Tcl
 * Vimscript
 * Visual Basic.NET
@@ -88,6 +95,34 @@ FAQ](docs/FAQ.md) where I attempt to answer some common questions.
 
 ## Building/running implementations
 
+The simplest way to run any given implementation is to use docker.
+Every implementation has a docker image pre-built with language
+dependencies installed. You can launch the REPL using a convenience
+target in the top level Makefile (where IMPL is the implementation
+directory name and stepX is the step to run):
+
+```
+make DOCKERIZE=1 "repl^IMPL^stepX"
+    # OR stepA is the default step:
+make DOCKERIZE=1 "repl^IMPL"
+```
+
+
+### Ada
+
+*The Ada implementation was created by [Chris Moore](https://github.com/zmower)*
+
+The Ada implementation was developed with GNAT 4.9 on debian. It also
+compiles unchanged on windows if you have windows versions of git,
+GNAT and (optionally) make.  There are no external dependencies
+(readline not implemented).
+
+```
+cd ada
+make
+./stepX_YYY
+```
+
 ### GNU awk
 
 *The GNU awk implementation was created by [Miutsuru kariya](https://github.com/kariya-mitsuru)*
@@ -109,7 +144,8 @@ bash stepX_YYY.sh
 ### C
 
 The C implementation of mal requires the following libraries (lib and
-header packages): glib, libffi6 and either the libedit or GNU readline library.
+header packages): glib, libffi6, libgc, and either the libedit or GNU readline
+library.
 
 ```
 cd c
@@ -169,7 +205,7 @@ coffee ./stepX_YYY
 
 *The Crystal implementation of mal was created by [Linda_pp](https://github.com/rhysd)*
 
-The Crystal implementation of mal has been tested with Crystal 0.8.0.
+The Crystal implementation of mal has been tested with Crystal 0.10.0.
 
 ```
 cd crystal
@@ -190,6 +226,22 @@ readline library.
 cd d
 make
 ./stepX_YYY
+```
+
+### Emacs Lisp
+
+*The Emacs Lisp implementation was created by [Vasilij Schneidermann](https://github.com/wasamasa)*
+
+The Emacs Lisp implementation of mal has been tested with Emacs 24.3
+and 24.5.  While there is very basic readline editing (`<backspace>`
+and `C-d` work, `C-c` cancels the process), it is recommended to use
+`rlwrap`.
+
+```
+cd elisp
+emacs -Q --batch --load stepX_YYY.el
+# with full readline support
+rlwrap emacs -Q --batch --load stepX_YYY.el
 ```
 
 ### Elixir
@@ -314,6 +366,38 @@ make
 ./stepX_YYY
 ```
 
+### Haxe
+
+The Haxe implementation of mal requires Haxe version 3.2 to compile.
+Four different Haxe targets are supported: Neko, Python, C++, and
+JavaScript.
+
+```
+cd haxe
+# Neko
+make all-neko
+neko ./stepX_YYY.n
+# Python
+make all-python
+python3 ./stepX_YYY.py
+# C++
+make all-cpp
+./cpp/stepX_YYY
+# JavaScript
+make all-js
+node ./stepX_YYY.js
+```
+
+### Io
+
+*The Io implementation was created by [Dov Murik](https://github.com/dubek)*
+
+The Io implementation of mal has been tested with Io version 20110905.
+
+```
+cd io
+io ./stepX_YYY.io
+```
 
 ### Java 1.7
 
@@ -348,7 +432,7 @@ julia stepX_YYY.jl
 
 *The Kotlin implementation was created by [Javier Fernandez-Ivern](https://github.com/ivern)*
 
-The Kotlin implementation of mal has been tested with Kotlin 1.0.0-beta.
+The Kotlin implementation of mal has been tested with Kotlin 1.0.
 
 ```
 cd kotlin
@@ -397,6 +481,29 @@ cd nim
 make
   # OR
 nimble build
+./stepX_YYY
+```
+
+### Object Pascal
+
+The Object Pascal implementation of mal has been built and tested on
+Linux using the Free Pascal compiler version 2.6.2 and 2.6.4.
+
+```
+cd objpascal
+make
+./stepX_YYY
+```
+
+### Objective C
+
+The Objective C implementation of mal has been built and tested on
+Linux using clang/LLVM 3.6. It has also been built and tested on OS
+X using XCode 7.
+
+```
+cd objc
+make
 ./stepX_YYY
 ```
 
@@ -552,6 +659,18 @@ make
 ./stepX_YYY
 ```
 
+### Swift 3
+
+The Swift 3 implementation of mal requires the Swift 3.0 compiler. It
+has been tested with the development version of the Swift 3 from
+2016-02-08.
+
+```
+cd swift3
+make
+./stepX_YYY
+```
+
 ### Tcl 8.6
 
 *The Tcl implementation was created by [Dov Murik](https://github.com/dubek)*
@@ -594,7 +713,7 @@ mono ./stepX_YYY.exe
 
 ### Functional tests
 
-The are nearly 500 generic functional tests (for all implementations)
+The are over 600 generic functional tests (for all implementations)
 in the `tests/` directory. Each step has a corresponding test file
 containing tests specific to that step. The `runtest.py` test harness
 launches a Mal step implementation and then feeds the tests one at
@@ -728,43 +847,37 @@ make "stats-lisp^IMPL"
 make "stats-lisp^js"
 ```
 
-## Docker test environment
+## Dockerized testing
 
-There is a Dockerfile included in the `tests/docker` directory that
-builds a docker image based on Ubuntu Utopic that contains everything
-needed to run tests against all the implementations (except for MATLAB
-which is proprietary/licensed).
+Every implementation directory contains a Dockerfile to create
+a docker image containing all the dependencies for that
+implementation. In addition, the top-level Makefile contains support
+for running the tests target (and perf, stats, repl, etc) within
+a docker container for that implementation by passing *"DOCKERIZE=1"*
+on the make command line. For example:
 
-Build the docker image using a provided script. WARNING: this will
-likely take over an hour to build from scratch and use more 3 GB of disk:
-```bash
-./tests/docker-build.sh
+```
+make DOCKERIZE=1 "test^js^step3"
 ```
 
-Launch a docker container from that image built above. This will
-volume mount the mal directory to `/mal` and then give you a bash
-prompt in the container. You can then run individual mal
-implementations and tests:
-```bash
-./tests/docker-run.sh
+Existing implementations already have docker images built and pushed
+to the docker registry. However, if
+you wish to build or rebuild a docker image locally, the toplevel
+Makefile provides a rule for building docker images:
+
+```
+make "docker-build^IMPL"
 ```
 
-You can also specify a command to run within the container. For
-example, to run step2 tests for every implementation (except MATLAB):
-```bash
-./tests/docker-run.sh make SKIP_IMPLS="matlab" "test^step2"
-```
 
 **Notes**:
-* JVM-based language implementations (Java, Clojure, Scala): you will
-  need to run these implementations once manually first before you can
-  run tests because runtime dependencies need to be downloaded to
-  avoid the tests timing out. These dependencies are download to
-  dot-files in the /mal directory so they will persist between runs.
-* Compiled languages: if your host system is different enough from
-  Ubuntu Utopic then you may need to re-compile your compiled
-  languages from within the container to avoid linker version
-  mismatches.
+* Docker images are named *"kanaka/mal-test-IMPL"*
+* JVM-based language implementations (Groovy, Java, Clojure, Scala):
+  you will probably need to run these implementations once manually
+  first (make DOCKERIZE=1 "repl^IMPL")before you can run tests because
+  runtime dependencies need to be downloaded to avoid the tests timing
+  out. These dependencies are download to dot-files in the /mal
+  directory so they will persist between runs.
 
 
 ## License

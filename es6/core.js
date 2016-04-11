@@ -39,6 +39,22 @@ function conj(lst, ...args) {
     }
 }
 
+function seq(obj) {
+    if (_list_Q(obj)) {
+        return obj.length > 0 ? obj : null
+    } else if (_vector_Q(obj)) {
+        return obj.length > 0 ? obj.slice(0) : null
+    } else if (typeof obj === "string" && obj[0] !== '\u029e') {
+        return obj.length > 0 ? obj.split('') : null
+    } else if (obj === null) {
+        return null
+    } else {
+        throw new Error('seq: called on non-sequence')
+    }
+}
+
+// hash-map functions
+
 function keys(hm) {
     // TODO: Array.from(hm.keys()) when supported
     let ks = []
@@ -68,6 +84,7 @@ export const core_ns = new Map([
         ['nil?', a => a === null],
         ['true?', a => a === true],
         ['false?', a => a === false],
+        ['string?', a => typeof a === "string" && a[0] !== '\u029e'],
         ['symbol', a => _symbol(a)],
         ['symbol?', a => _symbol_Q(a)],
         ['keyword', a => _keyword(a)],
@@ -108,14 +125,15 @@ export const core_ns = new Map([
         ['cons', (a,b) => [a].concat(b)],
         ['concat', (...a) => a.reduce((x,y) => x.concat(y), [])],
         ['nth', nth],
-        ['first', a => a.length > 0 ? a[0] : null],
-        ['rest', a => a.slice(1)],
+        ['first', a => a !== null && a.length > 0 ? a[0] : null],
+        ['rest', a => a === null ? [] : a.slice(1)],
         ['empty?', a => a.length === 0],
         ['count', a => a === null ? 0 : a.length],
         ['apply', (f,...a) => f(...a.slice(0, -1).concat(a[a.length-1]))],
         ['map', (f,a) => a.map(x => f(x))],
 
         ['conj', conj],
+        ['seq', seq],
 
         ['meta', a => 'meta' in a ? a['meta'] : null],
         ['with-meta', with_meta],

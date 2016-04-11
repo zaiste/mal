@@ -27,7 +27,7 @@ MalVal *READ(char prompt[], char *str) {
         }
     }
     ast = read_str(line);
-    if (!str) { free(line); }
+    if (!str) { MAL_GC_FREE(line); }
     return ast;
 }
 
@@ -60,7 +60,7 @@ MalVal *quasiquote(MalVal *ast) {
 }
 
 int is_macro_call(MalVal *ast, Env *env) {
-    if (!ast || ast->type != MAL_LIST) { return 0; }
+    if (!ast || ast->type != MAL_LIST || _count(ast) == 0) { return 0; }
     MalVal *a0 = _nth(ast, 0);
     return (a0->type & MAL_SYMBOL) &&
             env_find(env, a0) &&
@@ -124,7 +124,9 @@ MalVal *EVAL(MalVal *ast, Env *env) {
     //g_print("EVAL apply list: %s\n", _pr_str(ast,1));
     ast = macroexpand(ast, env);
     if (!ast || mal_error) return NULL;
-    if (ast->type != MAL_LIST) { return ast; }
+    if (ast->type != MAL_LIST) {
+        return eval_ast(ast, env);
+    }
     if (_count(ast) == 0) { return ast; }
 
     int i, len;
@@ -319,7 +321,9 @@ void init_repl_env(int argc, char *argv[]) {
     RE(repl_env, "",
        "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))");
     RE(repl_env, "", "(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))");
-    RE(repl_env, "", "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))");
+    RE(repl_env, "", "(def! *gensym-counter* (atom 0))");
+    RE(repl_env, "", "(def! gensym (fn* [] (symbol (str \"G__\" (swap! *gensym-counter* (fn* [x] (+ 1 x)))))))");
+    RE(repl_env, "", "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) (let* (condvar (gensym)) `(let* (~condvar ~(first xs)) (if ~condvar ~condvar (or ~@(rest xs)))))))))");
 }
 
 int main(int argc, char *argv[])
@@ -327,6 +331,8 @@ int main(int argc, char *argv[])
     MalVal *exp;
     char *output;
     char prompt[100];
+
+    MAL_GC_SETUP();
 
     // Set the initial prompt and environment
     snprintf(prompt, sizeof(prompt), "user> ");
@@ -348,8 +354,8 @@ int main(int argc, char *argv[])
         output = PRINT(exp);
 
         if (output) { 
-            g_print("%s\n", output);
-            free(output);        // Free output string
+            puts(output);
+            MAL_GC_FREE(output);        // Free output string
         }
 
         //malval_free(exp);    // Free evaluated expression

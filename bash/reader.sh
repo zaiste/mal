@@ -11,11 +11,12 @@ READ_ATOM () {
     local token=${__reader_tokens[${__reader_idx}]}
     __reader_idx=$(( __reader_idx + 1 ))
     case "${token}" in
-        [0-9]*) _number "${token}" ;;
+        [0-9]*)  _number "${token}" ;;
+        -[0-9]*) _number "${token}" ;;
         \"*)    token="${token:1:-1}"
-                token="${token//\\\\/\\}"
                 token="${token//\\\"/\"}"
                 token="${token//\\n/$'\n'}"
+                token="${token//\\\\/\\}"
                 _string "${token}" ;;
         :*)     _keyword "${token:1}" ;;
         nil)    r="${__nil}" ;;

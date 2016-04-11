@@ -46,6 +46,7 @@ const EVAL = (ast, env) => {
   while (true) {
     //console.log('EVAL:', pr_str(ast, true))
     if (!_list_Q(ast)) { return eval_ast(ast, env) }
+    if (ast.length === 0) { return ast }
 
     const [a0, a1, a2, a3] = ast
     const a0sym = _symbol_Q(a0) ? Symbol.keyFor(a0) : Symbol(':default')
@@ -110,7 +111,7 @@ REP('(def! not (fn* (a) (if a false true)))')
 REP('(def! load-file (fn* (f) (eval (read-string (str "(do " (slurp f) ")")))))')
 
 if (process.argv.length > 2) { 
-    env_set(repl_env, '*ARGV*', process.argv.slice(3))
+    env_set(repl_env, _symbol('*ARGV*'), process.argv.slice(3))
     REP(`(load-file "${process.argv[2]}")`)
     process.exit(0)
 }

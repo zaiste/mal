@@ -68,12 +68,31 @@ rest([{Type, [_First|Rest], _Meta}]) when Type == list orelse Type == vector ->
     {list, Rest, nil};
 rest([{Type, [], _Meta}]) when Type == list orelse Type == vector ->
     {list, [], nil};
+rest([nil]) ->
+    {list, [], nil};
 rest([_]) ->
     {error, "rest called on non-sequence"};
 rest([]) ->
     {error, "rest called with no arguments"};
 rest(_) ->
     {error, "rest expects one list argument"}.
+
+seq([{list, [], _Meta}]) ->
+    nil;
+seq([{list, List, _Meta}]) ->
+    {list, List, nil};
+seq([{vector, [], _Meta}]) ->
+    nil;
+seq([{vector, List, _Meta}]) ->
+    {list, List, nil};
+seq([{string, []}]) ->
+    nil;
+seq([{string, S}]) ->
+    {list, lists:map(fun(C) -> {string, [C]} end, S), nil};
+seq([nil]) ->
+    nil;
+seq(_) ->
+    {error, "seq expects one list/vector/string/nil argument"}.
 
 equal_q(Args) ->
     case Args of
@@ -84,13 +103,34 @@ equal_q(Args) ->
         [{string, S}, {string, T}] -> S == T;
         [{keyword, K}, {keyword, J}] -> K == J;
         [{symbol, S}, {symbol, T}] -> S == T;
-        [{list, L1, _M1}, {list, L2, _M2}] -> L1 == L2;
-        [{vector, L1, _M1}, {vector, L2, _M2}] -> L1 == L2;
-        [{list, L1, _M1}, {vector, L2, _M2}] -> L1 == L2;
-        [{vector, L1, _M1}, {list, L2, _M2}] -> L1 == L2;
-        [{map, M1, _M1}, {map, M2, _M2}] -> M1 == M2;
+        [{list, L1, _M1}, {list, L2, _M2}] -> equal_seqs(L1, L2);
+        [{vector, L1, _M1}, {vector, L2, _M2}] -> equal_seqs(L1, L2);
+        [{list, L1, _M1}, {vector, L2, _M2}] -> equal_seqs(L1, L2);
+        [{vector, L1, _M1}, {list, L2, _M2}] -> equal_seqs(L1, L2);
+        [{map, M1, _M1}, {map, M2, _M2}] -> equal_maps(M1, M2);
         [_A, _B] -> false;
         _ -> {error, "equal? expects two arguments"}
+    end.
+
+equal_seqs([], []) ->
+    true;
+equal_seqs([X|Xs], [Y|Ys]) ->
+    equal_q([X, Y]) andalso equal_seqs(Xs, Ys);
+equal_seqs(_, _) ->
+    false.
+
+equal_maps(M1, M2) ->
+    maps:size(M1) == maps:size(M2) andalso equal_maps_for_keys(maps:keys(M1), M1, M2).
+
+equal_maps_for_keys([], _M1, _M2) ->
+    true;
+equal_maps_for_keys([K|Ks], M1, M2) ->
+    equal_values_for_key(K, M1, M2) andalso equal_maps_for_keys(Ks, M1, M2).
+
+equal_values_for_key(K, M1, M2) ->
+    case [maps:find(K, M1), maps:find(K, M2)] of
+        [{ok, V1}, {ok, V2}] -> equal_q([V1, V2]);
+        _ -> false
     end.
 
 int_op(F, [A0,A1]) ->
@@ -303,9 +343,11 @@ ns() ->
         "readline" => fun readline/1,
         "reset!" => fun types:reset/1,
         "rest" => fun rest/1,
+        "seq" => fun seq/1,
         "sequential?" => fun types:sequential_p/1,
         "slurp" => fun slurp/1,
         "str" => fun str/1,
+        "string?" => fun types:string_p/1,
         "swap!" => fun types:swap/1,
         "symbol" => fun types:symbol/1,
         "symbol?" => fun types:symbol_p/1,

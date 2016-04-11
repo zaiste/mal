@@ -80,63 +80,7 @@
 (meta plus8)
 ;=>{"meta" 1}
 
-
 ;;
-;; Testing atoms
-
-(def! inc3 (fn* (a) (+ 3 a)))
-
-(def! a (atom 2))
-;=>(atom 2)
-
-(atom? a)
-;=>true
-
-(atom? 1)
-;=>false
-
-;;;(type a)
-;;;;=>"atom"
-
-(deref a)
-;=>2
-
-@a
-;=>2
-
-(reset! a 3)
-;=>3
-
-@a
-;=>3
-
-(swap! a inc3)
-;=>6
-
-@a
-;=>6
-
-(swap! a (fn* (a) a))
-;=>6
-
-(swap! a (fn* (a) (* 2 a)))
-;=>12
-
-(swap! a (fn* (a b) (* a b)) 10)
-;=>120
-
-(swap! a + 3)
-;=>123
-
-;; Testing swap!/closure interaction
-(def! inc-it (fn* (a) (+ 1 a)))
-(def! atm (atom 7))
-(def! f (fn* [] (swap! atm inc-it)))
-(f)
-;=>8
-(f)
-;=>9
-
 ;; Testing hash-map evaluation and atoms (i.e. an env)
 (def! e (atom {"+" +}))
 (swap! e assoc "-" -)
@@ -156,6 +100,24 @@
 ;; ------- Optional Functionality --------------
 ;; ------- (Not needed for self-hosting) -------
 ;>>> soft=True
+
+;;
+;; Testing string? function
+(string? "")
+;=>true
+(string? 'abc)
+;=>false
+(string? "abc")
+;=>true
+(string? :abc)
+;=>false
+(string? (keyword "abc"))
+;=>false
+(string? 234)
+;=>false
+(string? nil)
+;=>false
+
 
 ;;
 ;; Testing conj function
@@ -181,6 +143,25 @@
 (conj [1] [2 3])
 ;=>[1 [2 3]]
 
+;;
+;; Testing seq function
+(seq "abc")
+;=>("a" "b" "c")
+(apply str (seq "this is a test"))
+;=>"this is a test"
+(seq '(2 3 4))
+;=>(2 3 4)
+(seq [2 3 4])
+;=>(2 3 4)
+
+(seq "")
+;=>nil
+(seq '())
+;=>nil
+(seq [])
+;=>nil
+(seq nil)
+;=>nil
 
 ;;
 ;; Testing metadata on collections
@@ -236,3 +217,19 @@
 (meta +)
 ;=>nil
 
+;;
+;; Testing gensym and clean or macro
+(= (gensym) (gensym))
+;=>false
+(let* [or_FIXME 23] (or false (+ or_FIXME 100)))
+;=>123
+
+;;
+;; Testing time-ms function
+(def! start-time (time-ms))
+(> start-time 0)
+;=>true
+(let* [sumdown (fn* (N) (if (> N 0) (+ N (sumdown (- N 1))) 0))] (sumdown 10)) ; Waste some time
+;=>55
+(> (time-ms) start-time)
+;=>true

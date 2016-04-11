@@ -118,6 +118,7 @@ module REPL
     and eval env = function
         | List(_, _) as node ->
             match macroExpand env node with
+            | List(_, []) as emptyList -> emptyList
             | List(_, Symbol("def!")::rest) -> defBangForm env rest
             | List(_, Symbol("defmacro!")::rest) -> defMacroForm env rest
             | List(_, Symbol("macroexpand")::rest) -> macroExpandForm env rest
@@ -137,7 +138,7 @@ module REPL
                     let inner = Env.makeNew outer binds rest
                     body |> eval inner
                 | _ -> raise <| Error.errExpectedX "func"
-            | node -> node
+            | node -> node |> eval_ast env
         | node -> node |> eval_ast env
 
     let READ input =

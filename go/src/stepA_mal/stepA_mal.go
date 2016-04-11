@@ -56,6 +56,9 @@ func quasiquote(ast MalType) MalType {
 func is_macro_call(ast MalType, env EnvType) bool {
 	if List_Q(ast) {
 		slc, _ := GetSlice(ast)
+		if len(slc) == 0 {
+			return false
+		}
 		a0 := slc[0]
 		if Symbol_Q(a0) && env.Find(a0.(Symbol)) != nil {
 			mac, e := env.Get(a0.(Symbol))
@@ -153,6 +156,9 @@ func EVAL(ast MalType, env EnvType) (MalType, error) {
 			return nil, e
 		}
 		if !List_Q(ast) {
+			return eval_ast(ast, env)
+		}
+		if len(ast.(List).Val) == 0 {
 			return ast, nil
 		}
 
@@ -334,7 +340,9 @@ func main() {
 	rep("(def! not (fn* (a) (if a false true)))")
 	rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))")
 	rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))")
-	rep("(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))")
+	rep("(def! *gensym-counter* (atom 0))")
+	rep("(def! gensym (fn* [] (symbol (str \"G__\" (swap! *gensym-counter* (fn* [x] (+ 1 x)))))))")
+	rep("(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) (let* (condvar (gensym)) `(let* (~condvar ~(first xs)) (if ~condvar ~condvar (or ~@(rest xs)))))))))")
 
 	// called with mal script to load and eval
 	if len(os.Args) > 1 {

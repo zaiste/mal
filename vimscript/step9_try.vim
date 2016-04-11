@@ -108,8 +108,11 @@ function EVAL(ast, env)
 
     let ast = MacroExpand(ast, env)
     if !ListQ(ast)
-      return ast
+      return EvalAst(ast, env)
     end
+    if EmptyQ(ast)
+      return ast
+    endif
 
     let first = ListFirst(ast)
     let first_symbol = SymbolQ(first) ? ObjValue(first) : ""

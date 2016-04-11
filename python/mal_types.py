@@ -18,6 +18,8 @@ else:
 
 def _equal_Q(a, b):
     ota, otb = type(a), type(b)
+    if _string_Q(a) and _string_Q(b):
+        return a == b
     if not (ota == otb or (_sequential_Q(a) and _sequential_Q(b))):
         return False;
     if _symbol_Q(a):
@@ -61,7 +63,11 @@ def _clone(obj):
 def _nil_Q(exp):    return exp is None
 def _true_Q(exp):   return exp is True
 def _false_Q(exp):  return exp is False
-def _string_Q(exp): return type(exp) in str_types
+def _string_Q(exp):
+    if type(exp) in str_types:
+        return len(exp) == 0 or exp[0] != _u("\u029e")
+    else:
+        return False
 
 # Symbols
 class Symbol(str): pass
@@ -72,14 +78,17 @@ def _symbol_Q(exp): return type(exp) == Symbol
 # A specially prefixed string
 def _keyword(str):
     if str[0] == _u("\u029e"): return str
-    else:                     return _u("\u029e") + str
+    else:                      return _u("\u029e") + str
 def _keyword_Q(exp):
-    return _string_Q(exp) and exp[0] == _u("\u029e")
+    if type(exp) in str_types:
+        return len(exp) != 0 and exp[0] == _u("\u029e")
+    else:
+        return False
 
 # Functions
 def _function(Eval, Env, ast, env, params):
     def fn(*args):
-        return Eval(ast, Env(env, params, args))
+        return Eval(ast, Env(env, params, List(args)))
     fn.__meta__ = None
     fn.__ast__ = ast
     fn.__gen_env__ = lambda args: Env(env, params, args)

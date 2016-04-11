@@ -118,7 +118,12 @@ EVAL () {
     # apply list
     MACROEXPAND "${ast}" "${env}"
     ast="${r}"
-    if ! _list? "${ast}"; then return; fi
+    if ! _list? "${ast}"; then
+        EVAL_AST "${ast}" "${env}"
+        return
+    fi
+    _empty? "${ast}" && r="${ast}" && return
+
     _nth "${ast}" 0; local a0="${r}"
     _nth "${ast}" 1; local a1="${r}"
     _nth "${ast}" 2; local a2="${r}"
@@ -267,7 +272,9 @@ REP "(def! *host-language* \"bash\")"
 REP "(def! not (fn* (a) (if a false true)))"
 REP "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))"
 REP "(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))"
-REP "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) \`(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))"
+REP "(def! *gensym-counter* (atom 0))"
+REP "(def! gensym (fn* [] (symbol (str \"G__\" (swap! *gensym-counter* (fn* [x] (+ 1 x)))))))"
+REP "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) (let* (condvar (gensym)) \`(let* (~condvar ~(first xs)) (if ~condvar ~condvar (or ~@(rest xs)))))))))"
 
 # load/run file from command line (then exit)
 if [[ "${1}" ]]; then

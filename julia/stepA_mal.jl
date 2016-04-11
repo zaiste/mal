@@ -32,6 +32,7 @@ end
 
 function ismacroCall(ast, env)
     return isa(ast, Array) &&
+           !isempty(ast) &&
            isa(ast[1], Symbol) &&
            env_find(env, ast[1]) != nothing &&
            isa(env_get(env, ast[1]), MalFunc) &&
@@ -65,7 +66,8 @@ function EVAL(ast, env)
 
     # apply
     ast = macroexpand(ast, env)
-    if !isa(ast, Array) return ast end
+    if !isa(ast, Array) return eval_ast(ast, env) end
+    if isempty(ast) return ast end
 
     if     :def! == ast[1]
         return env_set(env, ast[2], EVAL(ast[3], env))
@@ -125,7 +127,7 @@ function EVAL(ast, env)
         end
     elseif symbol("fn*") == ast[1]
         return MalFunc(
-            (args...) -> EVAL(ast[3], Env(env, ast[2], args)),
+            (args...) -> EVAL(ast[3], Env(env, ast[2], Any[args...])),
             ast[3], env, ast[2])
     else
         el = eval_ast(ast, env)
@@ -162,7 +164,9 @@ REP("(def! *host-language* \"julia\")")
 REP("(def! not (fn* (a) (if a false true)))")
 REP("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))")
 REP("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))")
-REP("(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))")
+REP("(def! *gensym-counter* (atom 0))")
+REP("(def! gensym (fn* [] (symbol (str \"G__\" (swap! *gensym-counter* (fn* [x] (+ 1 x)))))))")
+REP("(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) (let* (condvar (gensym)) `(let* (~condvar ~(first xs)) (if ~condvar ~condvar (or ~@(rest xs)))))))))")
 
 
 if length(ARGS) > 0

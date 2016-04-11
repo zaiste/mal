@@ -1,4 +1,5 @@
 USE_READLINE ?=
+USE_GC ?= 1
 CFLAGS += -g -O2
 LDFLAGS += -g
 
@@ -38,12 +39,20 @@ RL_LIBRARY ?= readline
 CFLAGS += -DUSE_READLINE=1
 endif
 
+ifeq (,$(USE_GC))
+else
+CFLAGS += -DUSE_GC=1
+LDFLAGS += -lgc
+endif
+
 CFLAGS += $(GLIB_CFLAGS)
 LDFLAGS += -l$(RL_LIBRARY) $(GLIB_LDFLAGS) -ldl -lffi 
 
 #####################
 
-all: $(BINS) mal
+all: $(BINS)
+
+dist: mal
 
 mal: $(word $(words $(BINS)),$(BINS))
 	cp $< $@

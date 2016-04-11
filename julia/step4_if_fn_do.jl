@@ -27,6 +27,7 @@ end
 
 function EVAL(ast, env)
     if !isa(ast, Array) return eval_ast(ast, env) end
+    if isempty(ast) return ast end
 
     # apply
     if     :def! == ast[1]
@@ -51,7 +52,7 @@ function EVAL(ast, env)
             EVAL(ast[3], env)
         end
     elseif symbol("fn*") == ast[1]
-        (args...) -> EVAL(ast[3], Env(env, ast[2], args))
+        (args...) -> EVAL(ast[3], Env(env, ast[2], Any[args...]))
     else
         el = eval_ast(ast, env)
         f, args = el[1], el[2:end]
