@@ -57,9 +57,13 @@ TEST_OPTS =
 # later steps.
 REGRESS =
 
+DEFERRABLE=1
+OPTIONAL=1
+
 # Extra implementation specific options to pass to runtest.py
 mal_TEST_OPTS = --start-timeout 60 --test-timeout 120
 miniMAL_TEST_OPTS = --start-timeout 60 --test-timeout 120
+plpgsql_TEST_OPTS = --start-timeout 60 --test-timeout 180
 
 DOCKERIZE=
 
@@ -73,8 +77,8 @@ DOCKERIZE =
 IMPLS = ada awk bash c d clojure coffee cpp crystal cs erlang elisp \
 	elixir es6 factor forth fsharp go groovy guile haskell haxe \
 	io java julia js kotlin lua make mal ocaml matlab miniMAL \
-	nim objc objpascal perl php ps python r racket rpython ruby \
-	rust scala swift swift3 tcl vb vimscript
+	nim objc objpascal perl php plpgsql ps python r racket \
+	rpython ruby rust scala swift swift3 tcl vb vhdl vimscript
 
 step0 = step0_repl
 step1 = step1_read_print
@@ -104,6 +108,7 @@ test_EXCLUDES += test^bash^step5   # never completes at 10,000
 test_EXCLUDES += test^make^step5   # no TCO capability (iteration or recursion)
 test_EXCLUDES += test^mal^step5    # host impl dependent
 test_EXCLUDES += test^matlab^step5 # never completes at 10,000
+test_EXCLUDES += test^plpgsql^step5    # too slow for 10,000
 
 perf_EXCLUDES = mal  # TODO: fix this
 
@@ -129,6 +134,9 @@ haxe_RUNSTEP_neko   = neko ../$(2) $(3)
 haxe_RUNSTEP_python = python3 ../$(2) $(3)
 haxe_RUNSTEP_cpp    = ../$(2) $(3)
 haxe_RUNSTEP_js     = node ../$(2) $(3)
+
+opt_DEFERRABLE       = $(if $(strip $(DEFERRABLE)),$(if $(filter t true T True TRUE 1 y yes Yes YES,$(DEFERRABLE)),--deferrable,--no-deferrable),--no-deferrable)
+opt_OPTIONAL        = $(if $(strip $(OPTIONAL)),$(if $(filter t true T True TRUE 1 y yes Yes YES,$(OPTIONAL)),--optional,--no-optional),--no-optional)
 
 # Return list of test files for a given step. If REGRESS is set then
 # test files will include step 2 tests through tests for the step
@@ -175,6 +183,7 @@ objc_STEP_TO_PROG =    objc/$($(1))
 objpascal_STEP_TO_PROG = objpascal/$($(1))
 perl_STEP_TO_PROG =    perl/$($(1)).pl
 php_STEP_TO_PROG =     php/$($(1)).php
+plpgsql_STEP_TO_PROG = plpgsql/$($(1)).sql
 ps_STEP_TO_PROG =      ps/$($(1)).ps
 python_STEP_TO_PROG =  python/$($(1)).py
 r_STEP_TO_PROG =       r/$($(1)).r
@@ -187,6 +196,7 @@ swift_STEP_TO_PROG =   swift/$($(1))
 swift3_STEP_TO_PROG =  swift3/$($(1))
 tcl_STEP_TO_PROG =     tcl/$($(1)).tcl
 vb_STEP_TO_PROG =      vb/$($(1)).exe
+vhdl_STEP_TO_PROG =    vhdl/$($(1))
 vimscript_STEP_TO_PROG = vimscript/$($(1)).vim
 guile_STEP_TO_PROG =   guile/$($(1)).scm
 
@@ -241,6 +251,7 @@ objc_RUNSTEP =    ../$(2) $(3)
 objpascal_RUNSTEP = ../$(2) $(3)
 perl_RUNSTEP =    perl ../$(2) $(3)
 php_RUNSTEP =     php ../$(2) $(3)
+plpgsql_RUNSTEP = ./wrap.sh  ../$(2) $(3)
 ps_RUNSTEP =      gs -q -I./ -dNODISPLAY -- ../$(2) $(3)
 python_RUNSTEP =  $(PYTHON) ../$(2) $(3)
 r_RUNSTEP =       Rscript ../$(2) $(3)
@@ -253,6 +264,7 @@ swift_RUNSTEP =   ../$(2) $(3)
 swift3_RUNSTEP =  ../$(2) $(3)
 tcl_RUNSTEP =     tclsh ../$(2) --raw $(3)
 vb_RUNSTEP =      mono ../$(2) --raw $(3)
+vhdl_RUNSTEP =    ./run_vhdl.sh ../$(2) $(3)
 vimscript_RUNSTEP = ./run_vimscript.sh ../$(2) $(3)
 
 
@@ -324,8 +336,8 @@ $(ALL_TESTS): $$(call $$(word 2,$$(subst ^, ,$$(@)))_STEP_TO_PROG,$$(word 3,$$(s
 	    $(foreach test,$(call STEP_TEST_FILES,$(impl),$(step)),\
 	      echo '----------------------------------------------' && \
 	      echo 'Testing $@, step file: $+, test file: $(test)' && \
-	      echo 'Running: $(call get_run_prefix,$(impl))../runtest.py $(TEST_OPTS) $(call $(impl)_TEST_OPTS) ../$(test) -- $(call $(impl)_RUNSTEP,$(step),$(+))' && \
-	      $(call get_run_prefix,$(impl))../runtest.py $(TEST_OPTS) $(call $(impl)_TEST_OPTS) ../$(test) -- $(call $(impl)_RUNSTEP,$(step),$(+)) &&) \
+	      echo 'Running: $(call get_run_prefix,$(impl))../runtest.py $(TEST_OPTS) $(opt_DEFERRABLE) $(opt_OPTIONAL) $(call $(impl)_TEST_OPTS) ../$(test) -- $(call $(impl)_RUNSTEP,$(step),$(+))' && \
+	      $(call get_run_prefix,$(impl))../runtest.py $(TEST_OPTS) $(opt_DEFERRABLE) $(opt_OPTIONAL) $(call $(impl)_TEST_OPTS) ../$(test) -- $(call $(impl)_RUNSTEP,$(step),$(+)) &&) \
 	    true))
 
 # Allow test, tests, test^STEP, test^IMPL, and test^IMPL^STEP

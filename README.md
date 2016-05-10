@@ -6,7 +6,7 @@
 
 Mal is a Clojure inspired Lisp interpreter.
 
-Mal is implemented in 51 languages:
+Mal is implemented in 53 languages:
 
 * Ada
 * GNU awk
@@ -46,6 +46,7 @@ Mal is implemented in 51 languages:
 * OCaml
 * Perl
 * PHP
+* PL/pgSQL
 * Postscript
 * Python
 * RPython
@@ -57,6 +58,7 @@ Mal is implemented in 51 languages:
 * Swift
 * Swift 3
 * Tcl
+* VHDL
 * Vimscript
 * Visual Basic.NET
 
@@ -84,8 +86,12 @@ The mal (make a lisp) steps are:
 
 Mal was presented publicly for the first time in a lightning talk at
 Clojure West 2014 (unfortunately there is no video). See
-mal/clojurewest2014.mal for the presentation that was given at the
-conference (yes the presentation is a mal program).
+examples/clojurewest2014.mal for the presentation that was given at the
+conference (yes the presentation is a mal program). At Midwest.io
+2015, Joel Martin gave a presentation on Mal titled "Achievement
+Unlocked: A Better Path to Language Learning".
+[Video](https://www.youtube.com/watch?v=lgyOAiRtZGw),
+[Slides](http://kanaka.github.io/midwest.io.mal/).
 
 If you are interesting in creating a mal implementation (or just
 interested in using mal for something), please drop by the #mal
@@ -305,7 +311,7 @@ mono ./stepX_YYY.exe
 *The Factor implementation was created by [Jordan Lewis (jordanlewis)](https://github.com/jordanlewis)*
 
 The Factor implementation of mal has been tested with Factor 0.97
-([factorcode.org](factorcode.org)).
+([factorcode.org](http://factorcode.org)).
 
 ```
 cd factor
@@ -578,6 +584,19 @@ cd ps
 gs -q -dNODISPLAY -I./ stepX_YYY.ps
 ```
 
+### PL/pgSQL (Postgres SQL Procedural Language)
+
+The PL/pgSQL implementation of mal requires a running Postgres
+server (the "kanaka/mal-test-plpgsql" docker image automatically
+starts a Postgres server). The implementation connects to the Postgres
+server and create a database named "mal" to store tables and stored
+procedures. It has been tested with Postgres 9.4.
+
+```
+cd plpgsql
+./wrap.sh stepX_YYY.sql
+```
+
 ### Python (2.X or 3.X)
 
 ```
@@ -681,6 +700,18 @@ editing support, install tclreadline.
 ```
 cd tcl
 tclsh ./stepX_YYY.tcl
+```
+
+### VHDL
+
+*The VHDL implementation was created by [Dov Murik](https://github.com/dubek)*
+
+The VHDL implementation of mal has been tested with GHDL 0.29.
+
+```
+cd vhdl
+make
+./run_vhdl.sh ./stepX_YYY
 ```
 
 ### Vimscript

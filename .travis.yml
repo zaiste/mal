@@ -44,6 +44,7 @@ matrix:
     - {env: IMPL=ocaml,     services: [docker]}
     - {env: IMPL=perl,      services: [docker]}
     - {env: IMPL=php,       services: [docker]}
+    - {env: IMPL=plpgsql,   services: [docker]}
     - {env: IMPL=ps,        services: [docker]}
     - {env: IMPL=python,    services: [docker]}
     - {env: IMPL=r,         services: [docker]}
@@ -57,6 +58,7 @@ matrix:
     - {env: IMPL=swift3 NO_DOCKER=1, os: osx, osx_image: xcode7}
     - {env: IMPL=tcl,       services: [docker]}
     - {env: IMPL=vb,        services: [docker]}
+    - {env: IMPL=vhdl,      services: [docker]}
     - {env: IMPL=vimscript, services: [docker]}
 
 script:
